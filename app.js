@@ -464,7 +464,57 @@ function startAppWithGoogleDrive() {
   authenticateGoogle(async () => {
     const driveInfo = await setupImovelDriveStructure(codigo);
     if (driveInfo) {
+      // 1. Inicializa o ecrã base da vistoria com os campos limpos
       initMainAppScreen();
+      
+      // 2. Tenta carregar dados existentes na Nuvem de forma automática
+      try {
+        const savedData = await loadSessionFromDrive(codigo);
+        if (savedData && savedData.state) {
+          // Restaura os contadores de divisões (quartos e instalações sanitárias)
+          if (savedData.counts) {
+            counts = savedData.counts;
+            document.getElementById('val-quartos').textContent = counts.quartos;
+            document.getElementById('val-is').textContent = counts.is;
+            // Reconstrói a árvore de secções com base no número de divisões recuperadas
+            state.sections = buildSections();
+          }
+          
+          // Injeta as respostas, notas e mapeamento de fotos recuperados
+          state.answers = savedData.state.answers || {};
+          state.obs = savedData.state.obs || {};
+          state.photos = savedData.state.photos || {};
+          if (savedData.state.header) {
+            state.header = savedData.state.header;
+          }
+          
+          // Re-renderiza o ecrã com as cores correspondentes (Verde, Vermelho, Amarelo)
+          renderSections();
+          
+          // Loop para aplicar as classes visuais corretas em cada card restaurado
+          for (const id of Object.keys(state.answers)) {
+            const card = document.getElementById(`ic-${id}`);
+            if (card && state.answers[id]) {
+              card.className = `item-card answered-${state.answers[id]}`;
+              ['sim','nao','parcial','na'].forEach(v => {
+                const optBtn = document.getElementById(`opt-${id}-${v}`);
+                if (optBtn) optBtn.className = 'opt-btn' + (state.answers[id] === v ? ` active-${v}` : '');
+              });
+            }
+            // Se existirem fotos registadas no JSON, desenha os polegares de nuvem provisórios
+            if (state.photos[id] && state.photos[id].length > 0) {
+              renderPhotoRow(id);
+            }
+          }
+          
+          updateProgress();
+          showToast("✅ Sessão restaurada com sucesso!");
+        }
+      } catch (loadErr) {
+        console.error("Erro no mapeamento do restauro:", loadErr);
+      }
+      
+      // 3. Ativa o temporizador de gravação automática a cada 15 segundos
       startAutoSaveTimer();
     }
   });
