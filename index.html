@@ -1525,17 +1525,25 @@ function driveConnect() {
     client_id: DRIVE_CLIENT_ID,
     scope: DRIVE_SCOPES,
     callback: function(resp) {
-      if (resp.error) { showToast('Erro OAuth: ' + resp.error); return; }
+      if (resp.error) {
+        if (resp.error === 'popup_closed_by_user') return; // utilizador fechou — silencioso
+        showToast('Erro OAuth: ' + resp.error);
+        return;
+      }
+      if (!resp.access_token) { showToast('Sem token — tenta novamente.'); return; }
       driveToken = resp.access_token;
-      const expiry = Date.now() + (resp.expires_in - 60) * 1000;
+      const expiry = Date.now() + ((resp.expires_in || 3600) - 60) * 1000;
       try { localStorage.setItem('drive_token_v1', JSON.stringify({ token: driveToken, expiry })); } catch(e) {}
       updateDriveUI(true);
       showToast('✅ Google Drive ligado com sucesso!');
-      // If already in app session, start auto-save immediately
       if (state.header.codigo || state.header.morada) startDriveAutoSave();
+    },
+    error_callback: function(err) {
+      if (err.type === 'popup_closed') return;
+      showToast('Erro ao ligar ao Drive: ' + (err.type || JSON.stringify(err)));
     }
   });
-  client.requestAccessToken({ prompt: 'consent' });
+  client.requestAccessToken();
 }
 
 function driveDiconnect() {
