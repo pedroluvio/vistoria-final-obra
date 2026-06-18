@@ -898,6 +898,9 @@
         <input type="file" accept=".json" style="display:none" onchange="importSession(this.files[0])">
       </label>
     </div>
+    <button class="setup-btn-secondary" onclick="clearAllData()" style="margin-top:10px;width:100%;color:#c0392b;border-color:#f5c6c2" title="Apaga todos os dados da vistoria anterior, mantendo o seu nome">
+      🗑️ Limpar Dados
+    </button>
     <div id="autosave-indicator" style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:8px;display:none">
       💾 Sessão guardada automaticamente
     </div>
@@ -948,6 +951,10 @@
       <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Exportar PDF
     </button>
+    <button class="export-fab" style="background:#c8973a" onclick="openAutoReceção()">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Auto de Receção
+    </button>
   </div>
 </div>
 
@@ -976,6 +983,39 @@
       Escolher da Galeria
     </button>
     <button id="psm-cancel" style="width:100%;padding:13px;background:#f5f4f0;color:#6b7a8d;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent">Cancelar</button>
+  </div>
+</div>
+
+<!-- ── Auto de Receção de Obra modal ── -->
+<div id="auto-recep-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:16px">
+  <div style="background:white;border-radius:14px;padding:24px 20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto">
+    <div style="font-size:15px;font-weight:700;color:#1a2332;margin-bottom:4px">Auto de Receção de Obra</div>
+    <div style="font-size:12px;color:#6b7a8d;margin-bottom:18px">Preencha os dados adicionais para gerar o documento</div>
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data do Auto</div>
+    <input id="ar-data-auto" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">NIPC do Empreiteiro</div>
+    <input id="ar-nipc" type="tel" pattern="[0-9]*" placeholder="500000000" maxlength="9"
+      oninput="this.value=this.value.replace(/\D/g,'')"
+      onkeypress="if(!/[0-9]/.test(String.fromCharCode(event.charCode)))event.preventDefault()"
+      style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit;letter-spacing:0.1em">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data de Adjudicação</div>
+    <input id="ar-adjudicacao" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Concelho da Obra</div>
+    <input id="ar-concelho" type="text" placeholder="Ex: Lisboa" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Início de Obra</div>
+    <input id="ar-inicio" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:20px;outline:none;font-family:inherit">
+
+    <button onclick="exportAutoReceção()" style="width:100%;padding:14px;background:#406053;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;font-family:inherit">
+      Imprimir Auto de Receção
+    </button>
+    <button onclick="document.getElementById('auto-recep-modal').style.display='none'" style="width:100%;padding:12px;background:#f5f4f0;color:#6b7a8d;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+      Cancelar
+    </button>
   </div>
 </div>
 
@@ -1954,6 +1994,154 @@ function openPhoto(src) {
 }
 function closePhoto() {
   document.getElementById('photo-modal').classList.remove('open');
+}
+
+// ════════════════════════════════════════
+//  LIMPAR DADOS
+// ════════════════════════════════════════
+function clearAllData() {
+  if (!confirm('Apagar todos os dados da vistoria?\nO seu nome será mantido.')) return;
+  const tecnico = state.header.tecnico;
+  // Reset state
+  state.header = { codigo:'', morada:'', empreiteiro:'', rep:'', data:'', tecnico };
+  state.answers = {};
+  state.notes = {};
+  state.photos = {};
+  saveState();
+  // Reset form fields
+  document.getElementById('inp-codigo').value = '';
+  document.getElementById('inp-morada').value = '';
+  document.getElementById('inp-empreiteiro').value = '';
+  document.getElementById('inp-rep').value = '';
+  document.getElementById('inp-data').value = '';
+  // inp-tecnico keeps its value
+  showToast('Dados apagados. Pronto para nova vistoria.');
+}
+
+// ════════════════════════════════════════
+//  AUTO DE RECEÇÃO DE OBRA
+// ════════════════════════════════════════
+function openAutoReceção() {
+  // Pre-fill date fields with today if empty
+  const today = new Date().toISOString().split('T')[0];
+  const arAdj = document.getElementById('ar-adjudicacao');
+  const arIni = document.getElementById('ar-inicio');
+  const arDataAuto = document.getElementById('ar-data-auto');
+  if (!arAdj.value) arAdj.value = today;
+  if (!arIni.value) arIni.value = today;
+  if (!arDataAuto.value) arDataAuto.value = today;
+  document.getElementById('auto-recep-modal').style.display = 'flex';
+}
+
+function exportAutoReceção() {
+  const nipcRaw   = document.getElementById('ar-nipc').value.trim().replace(/\D/g,'');
+  if (nipcRaw.length !== 9) {
+    const inp = document.getElementById('ar-nipc');
+    inp.style.border = '2px solid #c0392b';
+    inp.style.background = '#fdecea';
+    inp.focus();
+    alert('O NIPC deve ter exactamente 9 dígitos.');
+    return;
+  }
+  document.getElementById('ar-nipc').style.border = '1.5px solid #dde2ea';
+  document.getElementById('ar-nipc').style.background = '';
+  const nipc = `${nipcRaw.slice(0,3)}.${nipcRaw.slice(3,6)}.${nipcRaw.slice(6,9)}`;
+  const adjDate   = document.getElementById('ar-adjudicacao').value;
+  const concelho  = document.getElementById('ar-concelho').value.trim() || '____________';
+  const inicioDate= document.getElementById('ar-inicio').value;
+  const dataAuto  = document.getElementById('ar-data-auto').value;
+
+  function fmtDate(d) {
+    if (!d) return '___ / ___ / ______';
+    const [y,m,day] = d.split('-');
+    return `${day} / ${m} / ${y}`;
+  }
+  function fmtDateLong(d) {
+    if (!d) return '__ de __________ de ____';
+    const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const dt = new Date(d + 'T12:00:00');
+    return `${dt.getDate()} de ${months[dt.getMonth()]} de ${dt.getFullYear()}`;
+  }
+
+  const h = state.header;
+  const visitoriaDate = h.data ? fmtDateLong(h.data) : fmtDateLong(new Date().toISOString().split('T')[0]);
+  const autoDate = fmtDateLong(dataAuto || new Date().toISOString().split('T')[0]);
+
+  const html = `<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=794, initial-scale=1.0">
+<title>Auto de Receção de Obra — ${h.codigo || 'LV000'}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; font-synthesis:none; }
+  body { font-family:Verdana,Geneva,sans-serif; font-size:12px; color:#1a2332; background:white; padding:40px 50px; width:794px; max-width:794px; line-height:1.7; }
+  @media print { body { padding:20px 30px; width:auto; max-width:none; } }
+  h1 { font-size:16px; font-weight:700; text-align:center; margin-bottom:24px; text-transform:uppercase; letter-spacing:0.05em; }
+  .section-title { font-size:11px; font-weight:700; color:#406053; text-transform:uppercase; letter-spacing:0.08em; margin:20px 0 8px; border-bottom:2px solid #406053; padding-bottom:4px; }
+  p { margin-bottom:10px; text-align:justify; }
+  .sig-block { margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+  .sig-line { border-top:1px solid #1a2332; padding-top:6px; font-size:11px; color:#6b7a8d; margin-top:40px; }
+  .ref { font-size:10px; color:#9aa3b0; text-align:right; margin-top:30px; }
+  .footer { position:fixed; bottom:20px; left:50px; right:50px; display:flex; justify-content:flex-start; font-size:10px; color:#9aa3b0; }
+  @media print { .footer { position:fixed; bottom:10px; left:30px; right:30px; } }
+  .header-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:30px; padding-bottom:16px; border-bottom:3px solid #406053; }
+  .header-bar .title-block .doc-title { font-size:18px; font-weight:700; color:#406053; letter-spacing:0.03em; }
+  .header-bar .title-block .doc-sub { font-size:10px; color:#9aa3b0; letter-spacing:0.06em; margin-top:2px; }
+  .header-bar .meta { text-align:right; font-size:11px; color:#6b7a8d; }
+</style>
+<script>window.addEventListener('load',function(){ setTimeout(function(){ window.print(); },600); });<\/script>
+</head>
+<body>
+
+<div class="header-bar">
+  <div class="title-block">
+    <div class="doc-title">AUTO DE RECEÇÃO DE OBRA</div>
+    <div class="doc-sub">${h.codigo || 'LV000'} · ${h.morada || ''}</div>
+  </div>
+  <div class="meta">${fmtDate(dataAuto)}</div>
+</div>
+
+<div class="section-title">Identificação das Partes e Objeto</div>
+
+<p><strong>Dono da Obra:</strong> GILMAR BASSANGUE &amp; EDUARDO MONTEIRO LDA, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva 518.031.373.</p>
+
+<p><strong>Empreiteiro:</strong> ${h.empreiteiro || '________________________________'}, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva ${nipc}.</p>
+
+<p><strong>Empreitada</strong> de Remodelação/Melhoramento do imóvel sito na <strong>${h.morada || '________________________________'}</strong>, adjudicada ao Empreiteiro acima identificado, por contrato datado de ${fmtDate(adjDate)}.</p>
+
+<div class="section-title">Auto de Receção de Obra</div>
+
+<p>A ${autoDate}, os abaixo assinados <strong>${h.tecnico || '_____________________________'}</strong> (representante do Dono de Obra) e <strong>${h.rep || '_____________________________'}</strong> (representante do Empreiteiro), compareceram na ${h.morada || 'Rua ________________________________'}, concelho de <strong>${concelho}</strong>, onde se procedeu, à realização da mencionada empreitada, a fim de se promover a VISTORIA de natureza técnica da obra, que teve o seu início em ${fmtDate(inicioDate)}, com vista à sua RECEÇÃO.</p>
+
+<p>Tendo sido examinada toda a obra e verificados todos os trabalhos realizados pelo Empreiteiro, com base no projeto e demais elementos técnicos, verificou-se que os mesmos se encontram executados em conformidade e sem anomalias, podendo, por isso, efetuar-se a RECEÇÃO DA OBRA mencionada em epígrafe.</p>
+
+<p>Face ao exposto, iniciam-se, na presente data, os períodos de Garantia estipulados no Contrato de Empreitada acima identificado e na legislação aplicável.</p>
+
+<p>Faz parte integrante do presente auto a CheckList Vistoria Final de Obra.</p>
+
+<p>Para os devidos e legais efeitos lavra-se o presente auto que vai assinado por ambas as Partes.</p>
+
+<div class="sig-block">
+  <div>
+    <div class="sig-line">Assinatura do representante do Dono de Obra</div>
+  </div>
+  <div>
+    <div class="sig-line">Assinatura do representante do Empreiteiro</div>
+  </div>
+</div>
+
+<div class="footer">
+  <span>${h.codigo || 'LV000'}</span>
+</div>
+
+</body></html>`;
+
+  document.getElementById('auto-recep-modal').style.display = 'none';
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // ════════════════════════════════════════
