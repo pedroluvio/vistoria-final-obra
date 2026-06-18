@@ -619,8 +619,8 @@
   }
 
   .photo-thumb {
-    min-width: 300px;
-    min-height: 300px;
+    min-width: 50px;
+    min-height: 50px;
     max-width: 100%;
     width: auto;
     height: auto;
@@ -1015,7 +1015,8 @@
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">NIPC do Empreiteiro</div>
     <input id="ar-nipc" type="tel" pattern="[0-9]*" placeholder="500000000" maxlength="9"
-      oninput="this.value=this.value.replace(/\D/g,'')"
+      oninput="this.value=this.value.replace(/\D/g,''); nipcLiveCheck(this)"
+      onblur="nipcBlurCheck(this)"
       onkeypress="if(!/[0-9]/.test(String.fromCharCode(event.charCode)))event.preventDefault()"
       style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit;letter-spacing:0.1em">
 
@@ -2415,31 +2416,48 @@ function openAutoReceção() {
   document.getElementById('auto-recep-modal').style.display = 'flex';
 }
 
+function _nipcShowError() {
+  const inp = document.getElementById('ar-nipc');
+  inp.style.border = '2px solid #c0392b';
+  inp.style.background = '#fdecea';
+  let errEl = document.getElementById('nipc-error-msg');
+  if (!errEl) {
+    errEl = document.createElement('div');
+    errEl.id = 'nipc-error-msg';
+    errEl.style.cssText = 'color:#c0392b;font-size:12px;font-weight:600;margin-top:-8px;margin-bottom:10px;padding:6px 10px;background:#fdecea;border-radius:6px;border:1px solid #f5c6c2';
+    inp.parentNode.insertBefore(errEl, inp.nextSibling);
+  }
+  errEl.textContent = 'O NIPC deve ter exactamente 9 dígitos.';
+}
+
+function _nipcClearError() {
+  const inp = document.getElementById('ar-nipc');
+  inp.style.border = '1.5px solid #dde2ea';
+  inp.style.background = '';
+  const errEl = document.getElementById('nipc-error-msg');
+  if (errEl) errEl.remove();
+}
+
+// Called on every keystroke: clear error as soon as 9 digits reached
+function nipcLiveCheck(inp) {
+  if (inp.value.length === 9) _nipcClearError();
+}
+
+// Called on blur (focus leaves field): show error if incomplete
+function nipcBlurCheck(inp) {
+  const v = inp.value.trim();
+  if (v.length > 0 && v.length !== 9) _nipcShowError();
+  else if (v.length === 9) _nipcClearError();
+}
+
 function exportAutoReceção() {
   const nipcRaw   = document.getElementById('ar-nipc').value.trim().replace(/\D/g,'');
   if (nipcRaw.length !== 9) {
-    const inp = document.getElementById('ar-nipc');
-    inp.style.border = '2px solid #c0392b';
-    inp.style.background = '#fdecea';
-    inp.focus();
-    // Show inline error instead of native alert
-    let errEl = document.getElementById('nipc-error-msg');
-    if (!errEl) {
-      errEl = document.createElement('div');
-      errEl.id = 'nipc-error-msg';
-      errEl.style.cssText = 'color:#c0392b;font-size:12px;font-weight:600;margin-top:-8px;margin-bottom:10px;padding:6px 10px;background:#fdecea;border-radius:6px;border:1px solid #f5c6c2';
-      inp.parentNode.insertBefore(errEl, inp.nextSibling);
-    }
-    errEl.textContent = 'O NIPC deve ter exactamente 9 dígitos.';
+    document.getElementById('ar-nipc').focus();
+    _nipcShowError();
     return;
   }
-  // Clear error if valid
-  const errElOk = document.getElementById('nipc-error-msg');
-  if (errElOk) errElOk.remove();
-  document.getElementById('ar-nipc').style.border = '1.5px solid #dde2ea';
-  document.getElementById('ar-nipc').style.background = '';
-  const nipcErrClr = document.getElementById('nipc-error-msg');
-  if (nipcErrClr) nipcErrClr.remove();
+  _nipcClearError();
   const nipc = `${nipcRaw.slice(0,3)}.${nipcRaw.slice(3,6)}.${nipcRaw.slice(6,9)}`;
   const adjDate   = document.getElementById('ar-adjudicacao').value;
   const concelho  = document.getElementById('ar-concelho').value.trim() || '____________';
