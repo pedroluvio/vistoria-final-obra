@@ -1038,7 +1038,7 @@
   </div>
 </div>
 
-<iframe id="print-frame" style="display:none;position:fixed;width:0;height:0;border:none;left:-9999px;top:-9999px" sandbox="allow-same-origin allow-scripts allow-modals"></iframe>
+<iframe id="print-frame" style="display:none;position:fixed;width:1px;height:1px;border:none;left:-9999px;top:-9999px" sandbox="allow-same-origin allow-scripts allow-modals allow-popups"></iframe>
 
 <script>
 // ════════════════════════════════════════
@@ -2611,10 +2611,10 @@ function exportAutoReceção() {
 </body></html>`;
 
   document.getElementById('auto-recep-modal').style.display = 'none';
-  const blob = new Blob([html], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  window.open(url, '_blank');
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  const h2 = state.header;
+  const filename = 'AutoRececao_' + (h2.codigo || 'LV000') + '_' + (h2.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+  const title = 'Auto de Receção de Obra — ' + (h2.codigo || 'LV000');
+  printViaIframe(html, title, filename);
 }
 
 // ════════════════════════════════════════
@@ -2836,43 +2836,62 @@ function exportPDF() {
 </body>
 </html>`;
 
-  // Open in new window and trigger print-to-PDF silently
+  // ── Print via iframe (funciona no Android Chrome sem abrir nova tab) ──
   const codigoStr = (state.header.codigo || state.header.morada || 'vistoria').replace(/[^a-zA-Z0-9À-ú\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
   const dataStr = (state.header.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
   const filename = `Vistoria_${codigoStr}_${dataStr}`;
 
-  // Inject auto-print script + hidden title trick into the HTML
-  const printTitle = 'Vistoria Final de Obra \u2014 ' + (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
-  const printRef = (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
-
-  // No wrapper needed — @page margin boxes handle header/footer
-  const hdrHtml = '';
-  const ftrHtml = '';
+  const printTitle = 'Vistoria Final de Obra — ' + (state.header.codigo || '') + (state.header.morada ? ' — ' + state.header.morada : '');
+  const printRef   = (state.header.codigo || '') + (state.header.morada ? ' — ' + state.header.morada : '');
 
   const printHtml = html
-    .replace('</head>',
-      `<style>:root{--print-ref:"${printRef.replace(/"/g,"'")}"}<\/style></head>`)
+    .replace('</head>', `<style>:root{--print-ref:"${printRef.replace(/"/g,"'")}"}<\/style></head>`)
     .replace('<div class="no-print"', '<div class="no-print" style="display:none"');
 
-  // ── Print: blob URL with inline auto-print script ──
-  // The script runs inside the opened document's own context —
-  // this works on Android Chrome (file://), desktop, and Drive.
-  const autoScript = '<scr' + 'ipt>window.addEventListener(\'load\',function(){' +
-    'document.title=' + JSON.stringify(printTitle) + ';' +
-    'setTimeout(function(){window.print();},500);' +
-    '});</scr' + 'ipt>';
-
-  const printHtmlFinal = printHtml.replace('</head>', autoScript + '</head>');
-  const blob = new Blob([printHtmlFinal], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const newWin = window.open(blobUrl, '_blank');
-
-  if (!newWin) {
-    fallbackDownload(html, filename);
-  } else {
-    setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 60000);
-  }
+  printViaIframe(printHtml, printTitle, filename);
 }
+
+function printViaIframe(htmlContent, title, filename) {
+  const iframe = document.getElementById('print-frame');
+  if (!iframe) { fallbackDownload(htmlContent, filename); return; }
+
+  // Write content into iframe
+  iframe.style.display = 'block';
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(htmlContent);
+  doc.close();
+
+  // Wait for images to load before printing
+  const imgs = doc.querySelectorAll('img');
+  let pending = imgs.length;
+
+  function doPrint() {
+    try {
+      iframe.contentWindow.document.title = title;
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch(e) {
+      fallbackDownload(htmlContent, filename);
+    }
+    setTimeout(function() { iframe.style.display = 'none'; }, 2000);
+  }
+
+  if (pending === 0) {
+    setTimeout(doPrint, 300);
+  } else {
+    let done = 0;
+    const onLoad = function() {
+      done++;
+      if (done >= pending) setTimeout(doPrint, 200);
+    };
+    imgs.forEach(function(img) {
+      if (img.complete) { onLoad(); }
+      else { img.addEventListener('load', onLoad); img.addEventListener('error', onLoad); }
+    });
+    // Safety timeout — print even if some images fail
+    setTimeout(doPrint, 4000);
+  }
 
 function fallbackDownload(html, filename) {
   // Last resort: download HTML file — user opens it and uses Share → Print
