@@ -1746,6 +1746,64 @@ function stopDriveAutoSave() {
   if (driveAutoSaveTimer) { clearInterval(driveAutoSaveTimer); driveAutoSaveTimer = null; }
 }
 
+// ── Re-download Drive photos after session restore ──
+// Fetches each drive:filename blob so photos appear in field and PDF
+async function driveRestorePhotos() {
+  if (!driveToken) return;
+
+  // Collect all unique drive: references across all items
+  const toFetch = {}; // filename -> [itemId, ...]
+  for (const [id, arr] of Object.entries(state.photos)) {
+    for (const src of (arr || [])) {
+      if (src && src.startsWith('drive:') && !drivePhotoBlobs[src]) {
+        if (!toFetch[src]) toFetch[src] = [];
+        toFetch[src].push(id);
+      }
+    }
+  }
+  if (Object.keys(toFetch).length === 0) return;
+
+  // Need the photos folder ID to search by name
+  const ok = await driveEnsureFolders();
+  if (!ok) return;
+
+  for (const [driveKey, itemIds] of Object.entries(toFetch)) {
+    const fileName = driveKey.replace('drive:', '');
+    try {
+      // Search for file by name in the photos folder
+      const q = `name=${JSON.stringify(fileName)} and '${drivePhotoFolderId}' in parents and trashed=false`;
+      const search = await driveApiCall(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,mimeType)&key=${DRIVE_API_KEY}`,
+        { method: 'GET' }
+      );
+      if (!search || !search.files || !search.files.length) continue;
+
+      const fileId = search.files[0].id;
+      const mimeType = search.files[0].mimeType || 'image/jpeg';
+
+      // Download file content
+      const resp = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { 'Authorization': 'Bearer ' + driveToken } }
+      );
+      if (!resp.ok) continue;
+
+      const blob = await resp.blob();
+      const objectURL = URL.createObjectURL(new Blob([blob], { type: mimeType }));
+      drivePhotoBlobs[driveKey] = objectURL;
+
+      // Re-render all items that reference this photo
+      const rendered = new Set();
+      for (const id of itemIds) {
+        if (!rendered.has(id)) {
+          renderPhotoRow(id);
+          rendered.add(id);
+        }
+      }
+    } catch(e) { /* skip individual failures */ }
+  }
+}
+
 // ════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════
@@ -1944,6 +2002,8 @@ function startApp() {
           if (wrap) wrap.style.display = 'block';
         }
       }
+      // Re-download Drive photos to restore blobs for display and PDF
+      if (driveToken) driveRestorePhotos();
     }
     // Update all section statuses
     for (const sec of state.sections) updateSectionStatus(sec.id);
@@ -2615,33 +2675,42 @@ function exportPDF() {
 
         let photosBlock = '';
         if (photos.length) {
-          photosBlock = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">`;
-          photos.forEach(src => {
-            // Resolve drive: references to cached objectURL or base64
+          const photoImgs = photos.map(src => {
             let imgSrc = src;
-            if (src && src.startsWith('drive:')) {
-              imgSrc = drivePhotoBlobs[src] || null;
-            }
-            if (imgSrc) {
-              photosBlock += `<img src="${imgSrc}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
-            } else {
-              // No blob available (session ended) — show filename label
-              const fname = src.replace('drive:','');
-              photosBlock += `<div style="padding:6px 10px;background:#e8f5ee;border-radius:6px;font-size:10px;color:#2a7a4b;font-weight:600">📸 ${fname}</div>`;
-            }
-          });
-          photosBlock += `</div>`;
+            if (src && src.startsWith('drive:')) imgSrc = drivePhotoBlobs[src] || null;
+            if (imgSrc) return `<img src="${imgSrc}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
+            const fname = src.replace('drive:','');
+            return `<div style="padding:6px 10px;background:#e8f5ee;border-radius:6px;font-size:10px;color:#2a7a4b;font-weight:600">📸 ${fname}</div>`;
+          }).join('');
+          photosBlock = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${photoImgs}</div>`;
         }
 
-        itemsHTML += `
-          <tr>
-            <td style="padding:7px 10px;font-size:12px;color:#406053;border-bottom:1px solid #edf0f4;vertical-align:top;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
-              ${grp.items[i]}
-              ${obsBlock}
-              ${photosBlock}
-            </td>
-            <td style="padding:7px 10px;border-bottom:1px solid #edf0f4;vertical-align:top;text-align:right;white-space:nowrap;font-family:Helvetica,Arial,sans-serif">${badge}</td>
-          </tr>`;
+        // Items with photos: render as self-contained div with break-inside:avoid
+        // Items without photos: keep in table row (compact)
+        if (photos.length) {
+          itemsHTML += `
+            <tr style="break-inside:avoid;page-break-inside:avoid">
+              <td colspan="2" style="padding:0;border-bottom:1px solid #edf0f4">
+                <div style="break-inside:avoid;page-break-inside:avoid;padding:7px 10px;display:flex;align-items:flex-start;gap:10px;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:12px;color:#406053;font-weight:500">${grp.items[i]}</div>
+                    ${obsBlock}
+                    ${photosBlock}
+                  </div>
+                  <div style="flex-shrink:0;padding-top:2px">${badge}</div>
+                </div>
+              </td>
+            </tr>`;
+        } else {
+          itemsHTML += `
+            <tr>
+              <td style="padding:7px 10px;font-size:12px;color:#406053;border-bottom:1px solid #edf0f4;vertical-align:top;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
+                ${grp.items[i]}
+                ${obsBlock}
+              </td>
+              <td style="padding:7px 10px;border-bottom:1px solid #edf0f4;vertical-align:top;text-align:right;white-space:nowrap;font-family:Helvetica,Arial,sans-serif">${badge}</td>
+            </tr>`;
+        }
       }
 
       groupsHTML += `
