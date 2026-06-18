@@ -1566,7 +1566,7 @@ async function driveEnsureFolder(name, parentId) {
   let q = `mimeType='application/vnd.google-apps.folder' and name=${JSON.stringify(name)} and trashed=false`;
   if (parentId) q += ` and '${parentId}' in parents`;
   const search = await driveApiCall(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&key=${DRIVE_API_KEY}`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`,
     { method: 'GET' }
   );
   if (search && search.files && search.files.length > 0) return search.files[0].id;
@@ -1639,7 +1639,7 @@ async function driveSaveJSON() {
     // Search for existing file in folder
     const q = `name=${JSON.stringify(fileName)} and '${driveFolderId}' in parents and trashed=false`;
     const search = await driveApiCall(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&key=${DRIVE_API_KEY}`,
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,
       { method: 'GET' }
     );
     if (search && search.files && search.files.length > 0) {
@@ -1773,7 +1773,7 @@ async function driveRestorePhotos() {
       // Search for file by name in the photos folder
       const q = `name=${JSON.stringify(fileName)} and '${drivePhotoFolderId}' in parents and trashed=false`;
       const search = await driveApiCall(
-        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,mimeType)&key=${DRIVE_API_KEY}`,
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,mimeType)`,
         { method: 'GET' }
       );
       if (!search || !search.files || !search.files.length) continue;
