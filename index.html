@@ -1,0 +1,2832 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#406053">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Vistoria Final de Obra</title>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --navy: #406053;
+    --navy-mid: #334c42;
+    --navy-light: #517a69;
+    --steel: #517a69;
+    --sky: #406053;
+    --sky-light: #517a69;
+    --cream: #f5f4f0;
+    --warm-white: #faf9f7;
+    --text-primary: #1a2332;
+    --text-muted: #6b7a8d;
+    --border: #dde2ea;
+    --sim: #2a7a4b;
+    --sim-bg: #e8f5ee;
+    --nao: #c0392b;
+    --nao-bg: #fdecea;
+    --parcial: #d97706;
+    --parcial-bg: #fef3e0;
+    --na: #6b7a8d;
+    --na-bg: #f0f2f5;
+    --done-bg: #e8f5ee;
+    --done-border: #2a7a4b;
+    --shadow-sm: 0 1px 3px rgba(26,35,50,0.08);
+    --shadow-md: 0 4px 12px rgba(26,35,50,0.12);
+    --shadow-lg: 0 8px 24px rgba(26,35,50,0.16);
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  html, body { height: 100%; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; font-variant-ligatures: none; }
+
+  body {
+    font-family: 'Inter', Verdana, Geneva, sans-serif;
+    background: var(--cream);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  /* ── SETUP SCREEN ── */
+  #setup-screen {
+    display: block;
+    width: 100%;
+    min-height: 100svh;
+    padding: 24px 16px 80px 16px;
+    background: linear-gradient(160deg, var(--navy) 0%, var(--navy-mid) 60%, var(--navy-light) 100%);
+  }
+
+  .setup-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 0;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    margin: 0 auto;
+  }
+  .setup-card-inner {
+    padding: 28px 24px 44px;
+  }
+  .setup-card-header {
+    background: #406053;
+    padding: 18px 24px 14px;
+    border-bottom: 4px solid #c8973a;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    overflow: hidden;
+  }
+
+  .setup-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .setup-logo-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--navy);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .setup-logo-icon svg { width: 22px; height: 22px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .setup-logo-text { line-height: 1.2; }
+  .setup-logo-text strong { font-size: 15px; font-weight: 700; color: var(--navy); display: block; }
+  .setup-logo-text span { font-size: 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+  .setup-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+
+  .setup-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  .setup-section { margin-bottom: 28px; }
+
+  .setup-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  .setup-counter {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .setup-counter label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--navy);
+    min-width: 80px;
+  }
+
+  .counter-control {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .counter-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--cream);
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .counter-btn:active { background: var(--border); }
+
+  .counter-value {
+    width: 44px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--navy);
+    border: none;
+    border-left: 1.5px solid var(--border);
+    border-right: 1.5px solid var(--border);
+    padding: 0;
+    background: white;
+    height: 36px;
+    line-height: 36px;
+  }
+
+  .setup-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px; /* 16px prevents iOS/Android auto-zoom on focus */
+    font-family: 'Inter', sans-serif;
+    color: var(--navy);
+    background: white;
+    outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 10px;
+    touch-action: manipulation;
+  }
+  .setup-input:focus { border-color: var(--sky); }
+  .setup-input::placeholder { color: var(--text-muted); }
+
+  .setup-btn {
+    width: 100%;
+    padding: 16px;
+    min-height: 52px;
+    background: #406053;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    margin-top: 8px;
+    display: block;
+  }
+  .setup-btn:active { background: var(--navy-light); transform: scale(0.99); }
+
+  .setup-btn-secondary {
+    flex: 1;
+    padding: 11px 8px;
+    background: white;
+    color: var(--navy);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    display: block;
+    line-height: 1.3;
+  }
+  .setup-btn-secondary:active { background: var(--cream); }
+
+  /* ── MAIN APP ── */
+  #app-screen { display: none; }
+
+  .app-header {
+    background: var(--navy);
+    color: white;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-logo-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .header-logo-icon svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .header-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .header-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 1px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .hdr-btn {
+    padding: 7px 12px;
+    border-radius: 7px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+  }
+  .hdr-btn:active { background: rgba(255,255,255,0.2); }
+  .hdr-btn svg { width: 13px; height: 13px; fill: none; stroke: white; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .hdr-btn.primary {
+    background: var(--sky);
+    border-color: var(--sky);
+  }
+
+  .progress-bar-wrap {
+    padding: 10px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--sky);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(255,255,255,0.6);
+    min-width: 60px;
+    text-align: right;
+  }
+
+  /* ── SECTION LIST ── */
+  .sections-wrap {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: max(100px, calc(80px + env(safe-area-inset-bottom)));
+    scroll-padding-bottom: 120px;
+  }
+
+  .section-block {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    border: 1.5px solid transparent;
+    transition: border-color 0.2s;
+  }
+
+  .section-block.is-done {
+    border-color: var(--done-border);
+    background: var(--done-bg);
+  }
+
+  .section-block.is-open {
+    border-color: var(--sky);
+    box-shadow: var(--shadow-md);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    gap: 12px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+
+  .section-block.is-done .section-icon {
+    background: var(--sim-bg);
+  }
+
+  .section-info { flex: 1; min-width: 0; }
+
+  .section-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .section-block.is-done .section-name {
+    text-decoration: line-through;
+    color: var(--text-muted);
+  }
+
+  .section-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 3px;
+  }
+
+  .section-progress-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .section-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 100px;
+    background: var(--cream);
+    color: var(--text-muted);
+  }
+
+  .section-block.is-done .section-badge {
+    background: var(--sim-bg);
+    color: var(--sim);
+  }
+
+  .section-chevron {
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+  }
+  .section-block.is-open .section-chevron { transform: rotate(180deg); }
+
+  .section-done-tick {
+    width: 22px;
+    height: 22px;
+    background: var(--sim);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-done-tick svg { width: 12px; height: 12px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .section-block.is-done .section-done-tick { display: flex; }
+
+  .group-na-btn {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 5px;
+    border: 1.5px solid var(--border);
+    background: white;
+    color: var(--text-muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .group-na-btn:active { background: var(--na-bg); border-color: var(--na); color: var(--na); }
+  .group-na-btn.active {
+    background: var(--na-bg);
+    border-color: var(--na);
+    color: var(--na);
+  }
+
+  /* ── ITEMS ── */
+  .section-body {
+    display: none;
+    border-top: 1.5px solid var(--border);
+  }
+  .section-block.is-open .section-body { display: block; }
+
+  .section-body-inner {
+    padding: 12px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .item-card {
+    background: var(--warm-white);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 13px;
+    transition: border-color 0.15s;
+  }
+
+  .item-card.answered { border-color: transparent; }
+  .item-card.answered-sim { background: var(--sim-bg); border-color: #b7e0ca; }
+  .item-card.answered-nao { background: var(--nao-bg); border-color: #f5c6c2; }
+  .item-card.answered-parcial { background: var(--parcial-bg); border-color: #f9d99b; }
+  .item-card.answered-na { background: var(--na-bg); border-color: #d5dae2; }
+
+  .item-question {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy);
+    line-height: 1.45;
+    margin-bottom: 10px;
+  }
+
+  .item-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 0;
+  }
+
+  .opt-btn {
+    padding: 0;
+    height: 34px;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    color: var(--text-muted);
+    -webkit-tap-highlight-color: transparent;
+    line-height: 1;
+  }
+
+  .opt-btn.active-sim {
+    background: var(--sim);
+    border-color: var(--sim);
+    color: white;
+  }
+  .opt-btn.active-nao {
+    background: var(--nao);
+    border-color: var(--nao);
+    color: white;
+  }
+  .opt-btn.active-parcial {
+    background: var(--parcial);
+    border-color: var(--parcial);
+    color: white;
+  }
+  .opt-btn.active-na {
+    background: var(--steel);
+    border-color: var(--steel);
+    color: white;
+  }
+
+  .item-obs-wrap {
+    margin-top: 9px;
+    display: none;
+  }
+
+  .item-obs-toggle {
+    font-size: 11px;
+    color: var(--sky);
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .item-obs-toggle svg { width: 12px; height: 12px; fill: none; stroke: var(--sky); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .item-obs-area {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 11px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    color: var(--navy);
+    background: white;
+    resize: none;
+    min-height: 68px;
+    outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 6px;
+  }
+  .item-obs-area:focus { border-color: var(--sky); }
+
+  .photo-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .photo-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+  }
+
+  .photo-add-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    border: 1.5px dashed var(--border);
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    gap: 2px;
+    -webkit-tap-highlight-color: transparent;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    transition: border-color 0.15s;
+  }
+  .photo-add-btn:active { border-color: var(--sky); }
+  .photo-add-btn svg { width: 18px; height: 18px; fill: none; stroke: var(--text-muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── CABEÇALHO CARD ── */
+  .cabecalho-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    border: 1.5px solid transparent;
+    margin-bottom: 8px;
+  }
+
+  .cabecalho-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    gap: 12px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .cabecalho-body {
+    display: none;
+    border-top: 1.5px solid var(--border);
+    padding: 14px 16px;
+  }
+
+  .cabecalho-body.is-open { display: block; }
+
+  .field-row {
+    margin-bottom: 12px;
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-size: 16px; /* 16px prevents auto-zoom on Android/iOS */
+    font-family: 'Inter', sans-serif;
+    color: var(--navy);
+    background: var(--warm-white);
+    outline: none;
+    transition: border-color 0.15s;
+    touch-action: manipulation;
+  }
+  .field-input:focus { border-color: var(--sky); background: white; }
+
+  .field-row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* ── MODAL FOTO ── */
+  #photo-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  #photo-modal.open { display: flex; }
+
+  #photo-modal img {
+    max-width: 94vw;
+    max-height: 80vh;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+
+  .modal-close {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .modal-close svg { width: 18px; height: 18px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--navy);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    white-space: nowrap;
+    max-width: calc(100vw - 32px);
+    text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── SUMMARY ── */
+  .summary-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1.5px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 -4px 16px rgba(26,35,50,0.1);
+    z-index: 50;
+  }
+
+  .summary-chips {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .summary-chip {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .chip-sim { background: var(--sim-bg); color: var(--sim); }
+  .chip-nao { background: var(--nao-bg); color: var(--nao); }
+  .chip-parcial { background: var(--parcial-bg); color: var(--parcial); }
+  .chip-na { background: var(--na-bg); color: var(--na); }
+
+  .export-fab {
+    padding: 10px 18px;
+    background: var(--navy);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .export-fab:active { background: var(--navy-light); }
+  .export-fab svg { width: 14px; height: 14px; fill: none; stroke: white; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── hidden file inputs ── */
+  #file-input-gallery, #file-input-camera { display: none; }
+
+  @media print {
+    body { background: white; }
+    .app-header, .summary-bar, #toast { display: none !important; }
+    .section-body { display: block !important; }
+    .section-block { break-inside: avoid; }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════ SETUP SCREEN ════════════ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEA3ADcAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCACZAgQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDwyiiioPlwooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooB3Zxk/SlwfQ/lQOzEooyM47+lFAgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKA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MQRsPQ7Rux7Zwaq53/W6e/Lqe6ftz/tJWXjB/wDhX3hm6S60y1nEmqXkRDJNKh+WJT3CsMk/3gPQ5+PaAAoAAwB6dKKR59So6suZhRRRSMgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z" style="height:28px;width:auto;display:block"></div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:white;line-height:1.2">Vistoria Final de Obra</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);font-family:monospace;margin-top:2px">v2.0 · Pedro Gonçalves</div>
+        </div>
+      </div>
+    </div>
+    <div class="setup-card-inner">
+    <div class="setup-title" style="color:#406053">Configuração da Vistoria</div>
+    <div class="setup-sub">Defina a tipologia do apartamento para ajustar automaticamente os separadores.</div>
+
+    <div class="setup-section">
+      <div class="setup-section-label">Tipologia</div>
+      <div class="setup-counter">
+        <label>Quartos</label>
+        <div class="counter-control">
+          <button class="counter-btn" onclick="adjustCount('quartos',-1)">−</button>
+          <div class="counter-value" id="val-quartos">1</div>
+          <button class="counter-btn" onclick="adjustCount('quartos',1)">+</button>
+        </div>
+      </div>
+      <div class="setup-counter">
+        <label>Inst. Sanitárias</label>
+        <div class="counter-control">
+          <button class="counter-btn" onclick="adjustCount('is',-1)">−</button>
+          <div class="counter-value" id="val-is">1</div>
+          <button class="counter-btn" onclick="adjustCount('is',1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="setup-section">
+      <div class="setup-section-label">Dados da Vistoria</div>
+      <input class="setup-input" id="inp-codigo" placeholder="Código do imóvel (ex: LV000)" type="text">
+      <input class="setup-input" id="inp-morada" placeholder="Morada do imóvel" type="text">
+      <input class="setup-input" id="inp-empreiteiro" placeholder="Empreiteiro" type="text">
+      <input class="setup-input" id="inp-rep" placeholder="Representante legal do empreiteiro" type="text">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <input class="setup-input" id="inp-data" placeholder="Data" type="date" style="margin-bottom:0">
+        <input class="setup-input" id="inp-tecnico" placeholder="Técnico" type="text" value="Pedro Gonçalves" style="margin-bottom:0">
+      </div>
+    </div>
+
+    <button class="setup-btn" onclick="startApp()">Iniciar Vistoria →</button>
+
+    <!-- Google Drive status -->
+    <div id="drive-status-bar" style="margin-top:12px;padding:11px 14px;border-radius:9px;border:1.5px solid var(--border);background:var(--cream);display:flex;align-items:center;gap:10px;font-size:13px;">
+      <div id="drive-status-dot" style="width:9px;height:9px;border-radius:50%;background:#d0d5dd;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div id="drive-status-text" style="font-weight:600;color:var(--navy)">Google Drive não ligado</div>
+        <div id="drive-status-sub" style="font-size:11px;color:var(--text-muted)">Ligue para guardar JSON e fotos automaticamente</div>
+      </div>
+      <button id="drive-connect-btn" onclick="driveConnect()" style="padding:7px 13px;background:#406053;color:white;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Ligar</button>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="setup-btn-secondary" onclick="exportSession()" title="Guarda a sessão actual num ficheiro JSON para poder retomar depois">
+        💾 Guardar Sessão
+      </button>
+      <label class="setup-btn-secondary" style="cursor:pointer;text-align:center" title="Retoma uma sessão guardada anteriormente">
+        📂 Retomar Sessão
+        <input type="file" accept=".json" style="display:none" onchange="importSession(this.files[0])">
+      </label>
+    </div>
+    <button class="setup-btn-secondary" onclick="clearAllData()" style="margin-top:10px;width:100%;color:#c0392b;border-color:#f5c6c2" title="Apaga todos os dados da vistoria anterior, mantendo o seu nome">
+      🗑️ Limpar Dados
+    </button>
+    <div id="autosave-indicator" style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:8px;display:none">
+      💾 Sessão guardada automaticamente
+    </div>
+    </div><!-- /.setup-card-inner -->
+  </div>
+</div>
+
+<!-- ════════════ APP SCREEN ════════════ -->
+<div id="app-screen">
+  <header class="app-header">
+    <div class="header-top">
+      <div class="header-logo">
+        <div class="header-logo-icon" style="background:transparent;border:none;width:56px;height:34px;padding:0;"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEA3ADcAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCACZAgQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDwyiiioPlwooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooB3Zxk/SlwfQ/lQOzEooyM47+lFAgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKA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MQRsPQ7Rux7Zwaq53/W6e/Lqe6ftz/tJWXjB/wDhX3hm6S60y1nEmqXkRDJNKh+WJT3CsMk/3gPQ5+PaAAoAAwB6dKKR59So6suZhRRRSMgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z" style="height:26px;width:auto;display:block"></div>
+        <div>
+          <div class="header-title">Vistoria Final de Obra</div>
+          <div class="header-sub" id="header-morada">—</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="hdr-btn" onclick="exportSession()" title="Guardar sessão">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Guardar
+        </button>
+        <button id="hdr-drive-btn" onclick="driveConnect()" title="Google Drive" style="display:none">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2M12 2l10 10-10 10"/></svg>
+        </button>
+        <button class="hdr-btn" onclick="exportPDF()">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          PDF
+        </button>
+      </div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">0 / 0</div>
+    </div>
+  </header>
+
+  <div class="sections-wrap" id="sections-wrap">
+    <!-- injected by JS -->
+  </div>
+
+  <div class="summary-bar">
+    <div class="summary-chips">
+      <div class="summary-chip chip-sim" id="sum-sim">✓ 0</div>
+      <div class="summary-chip chip-nao" id="sum-nao">✗ 0</div>
+      <div class="summary-chip chip-parcial" id="sum-parcial">◑ 0</div>
+      <div class="summary-chip chip-na" id="sum-na">— 0</div>
+    </div>
+    <button class="export-fab" onclick="exportPDF()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar PDF
+    </button>
+    <button class="export-fab" style="background:#c8973a" onclick="openAutoReceção()">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Auto de Receção
+    </button>
+  </div>
+</div>
+
+<!-- Photo modal -->
+<div id="photo-modal">
+  <button class="modal-close" onclick="closePhoto()">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <img id="photo-modal-img" src="" alt="">
+</div>
+
+<div id="toast"></div>
+<input type="file" id="file-input-gallery" accept="image/*" multiple style="display:none">
+<input type="file" id="file-input-camera" accept="image/*" capture="environment" style="display:none">
+
+<!-- ── Photo source picker modal ── -->
+<div id="photo-source-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+  <div style="background:white;border-radius:16px 16px 0 0;padding:20px 16px 36px;width:100%;max-width:480px">
+    <div style="font-size:14px;font-weight:700;color:#1a2332;margin-bottom:16px;text-align:center">Adicionar Fotografia</div>
+    <button id="psm-camera" style="width:100%;padding:15px;background:#406053;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:10px;-webkit-tap-highlight-color:transparent">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Tirar Fotografia
+    </button>
+    <button id="psm-gallery" style="width:100%;padding:15px;background:white;color:#406053;border:2px solid #406053;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:10px;-webkit-tap-highlight-color:transparent">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#406053" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Escolher da Galeria
+    </button>
+    <button id="psm-cancel" style="width:100%;padding:13px;background:#f5f4f0;color:#6b7a8d;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent">Cancelar</button>
+  </div>
+</div>
+
+<!-- ── Auto de Receção de Obra modal ── -->
+<div id="auto-recep-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:16px">
+  <div style="background:white;border-radius:14px;padding:24px 20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto">
+    <div style="font-size:15px;font-weight:700;color:#1a2332;margin-bottom:4px">Auto de Receção de Obra</div>
+    <div style="font-size:12px;color:#6b7a8d;margin-bottom:18px">Preencha os dados adicionais para gerar o documento</div>
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data do Auto</div>
+    <input id="ar-data-auto" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">NIPC do Empreiteiro</div>
+    <input id="ar-nipc" type="tel" pattern="[0-9]*" placeholder="500000000" maxlength="9"
+      oninput="this.value=this.value.replace(/\D/g,'')"
+      onkeypress="if(!/[0-9]/.test(String.fromCharCode(event.charCode)))event.preventDefault()"
+      style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit;letter-spacing:0.1em">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data de Adjudicação</div>
+    <input id="ar-adjudicacao" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Concelho da Obra</div>
+    <input id="ar-concelho" type="text" placeholder="Ex: Lisboa" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
+
+    <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Início de Obra</div>
+    <input id="ar-inicio" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:20px;outline:none;font-family:inherit">
+
+    <button onclick="exportAutoReceção()" style="width:100%;padding:14px;background:#406053;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;font-family:inherit">
+      Imprimir Auto de Receção
+    </button>
+    <button onclick="document.getElementById('auto-recep-modal').style.display='none'" style="width:100%;padding:12px;background:#f5f4f0;color:#6b7a8d;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+      Cancelar
+    </button>
+  </div>
+</div>
+
+<iframe id="print-frame" style="display:none;position:fixed;width:0;height:0;border:none;left:-9999px;top:-9999px" sandbox="allow-same-origin allow-scripts allow-modals"></iframe>
+
+<script>
+// ════════════════════════════════════════
+//  DATA — checklist master template
+// ════════════════════════════════════════
+
+const SECTION_ICONS = {
+  'GERAL': '🏠', 'HALL': '🚪', 'COZINHA': '🍳', 'SALA': '🛋️',
+  'QUARTO': '🛏️', 'INSTALAÇÃO SANITÁRIA': '🚿', 'DIVERSOS': '📋'
+};
+
+const TEMPLATE_SECTIONS = [
+  {
+    id: 'geral',
+    name: 'GERAL',
+    icon: '🏠',
+    items: [
+      { id: 'g0', group: '0 — Porta blindada / de entrada', items: [
+        'Abre/fecha',
+        'Acabamento interior da porta em conformidade com o projeto',
+        'Acabamento exterior da porta em conformidade com as áreas comuns',
+        'Fechadura fixa e em bom estado de funcionamento',
+        'Fechadura tranca/destranca',
+        'Remates interior/exterior em condições',
+        'Visibilidade através do óculo',
+        'Referência corresponde ao projeto',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'g1', group: '1 — Quadro eléctrico', items: [
+        'Quadro abre/fecha',
+        'Interruptor geral funciona',
+        'Disjuntores funcionam',
+        'Diferenciais funcionam',
+        'Etiquetas nos disjuntores',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'g2', group: '2 — Termoacumulador / Esquentador', items: [
+        'Liga/desliga',
+        'Aquece água',
+        'Fixação correta (com bucha química)',
+        'Sem fugas',
+        'Inclui todos os acessórios — tubo plástico para purga incluído',
+        'Tomada elétrica acima da entrada de esgoto',
+        'Referência corresponde ao projeto',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'g3', group: '3 — Chaves gerais', items: [
+        '5 unidades — portas blindadas',
+        'Abrem/fecham',
+      ]},
+      { id: 'g4', group: '4 — Unidades interiores de AVAC / Pré-instalação', items: [
+        'Unidade interior com fixação adequada/ligações efetuadas',
+        'Drenagem/esgoto da habitação',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'g5', group: '5 — Intercomunicador', items: [
+        'Funcionamento do microfone',
+        'Funcionamento do áudio',
+        'Funcionamento de abertura de porta',
+        'Campainha em funcionamento',
+        'Referência corresponde ao projeto',
+        'Aspeto estético geral em bom estado',
+      ]},
+    ]
+  },
+  {
+    id: 'hall',
+    name: 'HALL',
+    icon: '🚪',
+    items: [
+      { id: 'h1', group: '1 — Armário Técnico', items: [
+        'Acabamento da porta em conformidade com o projeto',
+        'Portas abrem/fecham',
+        'Portas têm batentes',
+        'Afinação de portas em conformidade',
+        'Instalação de dobradiças de portas em conformidade',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h2', group: '2 — Pavimento', items: [
+        'Assentamento do pavimento de forma adequada (sem ressaltos)',
+        'Sem peças danificadas',
+        'Não existem manchas de obra',
+        'Rodapé selado',
+        'Referência corresponde ao projeto',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h3', group: '3 — Teto falso', items: [
+        'Sem fissuras ou fendas',
+        'Sem humidades',
+        'Rebaixos verticais',
+        'Sancas/molduras em bom estado',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h4', group: '4 — Portas interiores', items: [
+        'Ferragens funcionam corretamente e em bom estado',
+        'Batentes de porta colocados corretamente',
+        'Guarnições colocadas corretamente',
+        'Acabamentos correspondem ao projeto',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h5', group: '5 — Pintura', items: [
+        'Pintura de paredes interiores com bom acabamento',
+        'Não se observam manchas de humidade',
+        'Não se observam manchas pontuais de sujidade',
+        'Pintura homogénea',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h6', group: '6 — Unidades interiores de AVAC / Pré-instalação', items: [
+        'Cablagem passada e inserida em caixa com tampa',
+        'Esgoto de condensados efetuado',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h7', group: '7 — Vãos exteriores', items: [
+        'Vão exterior com vidro conforme projeto',
+        'Abre corretamente',
+        'Fecha corretamente',
+        'Estore sobe e baixa corretamente',
+        'PVC selado no interior e exterior',
+        'Acabamentos correspondem ao projeto',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h8', group: '8 — Eletricidade', items: [
+        'Interruptores acendem e apagam',
+        'Tomadas funcionam corretamente',
+        'Aparelhagens bem fixas',
+        'Aspeto estético geral em bom estado',
+      ]},
+      { id: 'h9', group: '9 — Iluminação', items: [
+        'Pontos de luz funcionam corretamente',
+        'Focos de halogénio funcionam corretamente',
+        'LEDs funcionam corretamente',
+        'Referência corresponde ao projeto',
+      ]},
+    ]
+  },
+  {
+    id: 'cozinha',
+    name: 'COZINHA',
+    icon: '🍳',
+    items: [
+      { id: 'c1', group: '1 — Lava loiça', items: [
+        'Torneira abre/fecha','Água aquece','Drenagem correta (sem fugas)',
+        'Torneiras de segurança correctamente instaladas','Selado corretamente',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c2', group: '2 — Placa Vitrocerâmica', items: [
+        'Liga/desliga','Aquece corretamente','Instalação correta',
+        'Selado corretamente','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c3', group: '3 — Forno', items: [
+        'Liga/desliga','Instalação correta','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c4', group: '4 — Exaustor', items: [
+        'Extração funciona corretamente','Luzes liga/desliga','Instalação correta',
+        'Filtros de carbono colocados','Tubo de extração colocado',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c5', group: '5 — Microondas', items: [
+        'Liga/desliga','Aquece corretamente','Instalação correta',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c6', group: '6 — Máquina de lavar roupa', items: [
+        'Liga/desliga','Torneiras de segurança correctamente instaladas',
+        'Drenagem correta','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c7', group: '7 — Máquina de lavar loiça', items: [
+        'Liga/desliga','Torneiras de segurança correctamente instaladas',
+        'Drenagem correta','Porta bem instalada',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c8', group: '8 — Frigorífico Combinado', items: [
+        'Liga/desliga','Portas bem instaladas','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c9', group: '9 — Tampo', items: [
+        'Selado corretamente','Roda-tampo selado corretamente','Arestas polidas',
+        'Fixação aos móveis','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c10', group: '10 — Módulos', items: [
+        'Gavetas abrem/fecham (sem obstrução)','Portas abrem/fecham (sem obstrução)',
+        'Dobradiças instaladas corretamente','Dimensão correcta dos nichos para os eletrodomésticos',
+        'Dimensão correta do módulo de microondas','Dimensão correta do módulo de frigorífico',
+        'Dimensões conforme projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c11', group: '11 — Revestimento cerâmico', items: [
+        'Sem peças danificadas','Sem manchas de obra','Juntas betumadas correctamente',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c12', group: '12 — Pavimento', items: [
+        'Sem peças danificadas','Sem manchas de obra','Juntas betumadas correctamente',
+        'Encontro com os paramentos verticais com bom acabamento',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c13', group: '13 — Teto falso', items: [
+        'Sem fissuras ou fendas','Sem humidades','Rebaixos verticais',
+        'Sancas/molduras em bom estado','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c14', group: '14 — Eletricidade', items: [
+        'Interruptores acendem e apagam','Tomadas funcionam corretamente',
+        'Aparelhagens correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c15', group: '15 — Iluminação', items: [
+        'Pontos de luz funcionam corretamente','LEDs funcionam corretamente',
+        'Caixas de derivação em bom estado','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c16', group: '16 — Torneiras de segurança', items: [
+        'Abre/fecha a água','Acabamento em bom estado','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c17', group: '17 — Portas interiores', items: [
+        'Ferragens funcionam corretamente e em bom estado','Batentes de porta colocados corretamente',
+        'Guarnições colocadas corretamente','Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c18', group: '18 — Vãos exteriores', items: [
+        'Vão exterior com vidro conforme projeto','Abre corretamente','Fecha corretamente',
+        'Estore sobe e baixa corretamente','PVC selado no interior e exterior',
+        'Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 'c19', group: '19 — Pintura', items: [
+        'Pintura de paredes interiores com bom acabamento','Não se observam manchas de humidade',
+        'Não se observam manchas pontuais de sujidade','Pintura homogénea','Aspeto estético geral em bom estado',
+      ]},
+    ]
+  },
+  {
+    id: 'sala',
+    name: 'SALA',
+    icon: '🛋️',
+    items: [
+      { id: 's1', group: '1 — Armário', items: [
+        'Acabamento da porta em conformidade com o projeto','Portas abrem/fecham',
+        'Portas têm batentes','Afinação de portas em conformidade',
+        'Instalação de dobradiças de portas em conformidade','Instalação adequada de varões',
+        'Bloco de gavetas abre/fecha','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's2', group: '2 — Pavimento', items: [
+        'Assentamento do pavimento de forma adequada (sem ressaltos)',
+        'Sem peças danificadas','Não existem manchas de obra','Rodapé selado',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's3', group: '3 — Teto falso', items: [
+        'Sem fissuras ou fendas','Sem humidades','Rebaixos verticais',
+        'Sancas/molduras em bom estado','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's4', group: '4 — Portas interiores', items: [
+        'Ferragens funcionam corretamente e em bom estado','Batentes de porta colocados corretamente',
+        'Guarnições colocadas corretamente','Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's5', group: '5 — Pintura', items: [
+        'Pintura de paredes interiores com bom acabamento','Não se observam manchas de humidade',
+        'Não se observam manchas pontuais de sujidade','Pintura homogénea','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's6', group: '6 — Unidades interiores de AVAC / Pré-instalação (Splits)', items: [
+        'Cablagem passada e inserida em caixa com tampa',
+        'Esgoto de condensados efetuado','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's7', group: '7 — Vãos exteriores', items: [
+        'Vão exterior com vidro conforme projeto','Abre corretamente','Fecha corretamente',
+        'Estore sobe e baixa corretamente','PVC selado no interior e exterior',
+        'Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's8', group: '8 — Eletricidade', items: [
+        'Interruptores acendem e apagam','Tomadas funcionam corretamente',
+        'Aparelhagens bem fixas','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's9', group: '9 — Iluminação', items: [
+        'Pontos de luz funcionam corretamente','Focos de halogénio funcionam corretamente',
+        'LEDs funcionam corretamente','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: 's10', group: '10 — Varanda', items: [
+        'Pintura de paredes exteriores com bom acabamento','Pintura de paredes interiores com bom acabamento',
+        'Não se observam manchas de humidade','Não se observam manchas pontuais de sujidade',
+        'Pintura homogénea','Aspeto estético geral em bom estado',
+      ]},
+    ]
+  },
+];
+
+// Quarto template (repeated N times)
+function makeQuarto(n) {
+  const q = `Q${n}`;
+  return {
+    id: `quarto${n}`,
+    name: n === 1 ? 'QUARTO' : `QUARTO ${n}`,
+    icon: '🛏️',
+    items: [
+      { id: `${q}1`, group: '1 — Armários', items: [
+        'Acabamento da porta em conformidade com o projeto','Portas abrem/fecham',
+        'Portas têm batentes','Afinação de portas em conformidade',
+        'Instalação de dobradiças de portas em conformidade','Instalação adequada de varões',
+        'Bloco de gavetas abre/fecha','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}2`, group: '2 — Pavimento', items: [
+        'Assentamento do pavimento de forma adequada (sem ressaltos)',
+        'Sem peças danificadas','Não existem manchas de obra','Rodapé selado',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}3`, group: '3 — Teto falso', items: [
+        'Sem fissuras ou fendas','Sem humidades','Sancas/molduras em bom estado','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}4`, group: '4 — Portas interiores', items: [
+        'Ferragens funcionam corretamente e em bom estado','Batentes de porta colocados corretamente',
+        'Guarnições colocadas corretamente','Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}5`, group: '5 — Pintura', items: [
+        'Pintura de paredes interiores com bom acabamento','Não se observam manchas de humidade',
+        'Não se observam manchas pontuais de sujidade','Pintura homogénea','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}6`, group: '6 — Unidades interiores de AVAC / Pré-instalação', items: [
+        'Cablagem passada e inserida em caixa com tampa',
+        'Esgoto de condensados efetuado','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}7`, group: '7 — Vãos exteriores', items: [
+        'Vão exterior com vidro conforme projeto','Abre corretamente','Fecha corretamente',
+        'Estore sobe e baixa corretamente','PVC selado no interior e exterior',
+        'Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}8`, group: '8 — Eletricidade', items: [
+        'Interruptores acendem e apagam','Tomadas funcionam corretamente',
+        'Aparelhagens bem fixas','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}9`, group: '9 — Iluminação', items: [
+        'Pontos de luz funcionam corretamente','Focos de halogénio funcionam corretamente',
+        'LEDs funcionam corretamente','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+    ]
+  };
+}
+
+function makeIS(n) {
+  const q = `IS${n}`;
+  return {
+    id: `is${n}`,
+    name: n === 1 ? 'INST. SANITÁRIA' : `INST. SANITÁRIA ${n}`,
+    icon: '🚿',
+    items: [
+      { id: `${q}1`, group: '1 — Lavatórios', items: [
+        'Torneira abre/fecha','Torneira bem fixa','Água aquece','Drenagem correta (sem fugas)',
+        'Torneiras de segurança correctamente instaladas','Selado corretamente',
+        'Corte na 1ª gaveta efetuado de forma correta','Todas as gavetas abrem/fecham',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}2`, group: '2 — Sanita', items: [
+        'Autoclismo em bom estado de funcionamento','Tampo sobe e baixa corretamente',
+        'Selado corretamente','Torneira de segurança instalada corretamente (abre/fecha)',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}3`, group: '3 — Base de duche', items: [
+        'Monomando funciona correctamente','Torneira aberta (Água)','Água aquece',
+        'Drenagem correta (sem fugas)','Kit de duche instalado corretamente na parede',
+        'Selada corretamente','Referência corresponde ao projeto',
+        'Aspeto estético geral da base, kit de duche e monocomando em bom estado',
+      ]},
+      { id: `${q}4`, group: '4 — Espelho', items: [
+        'Posição e instalação corretas','Arestas polidas',
+        'Luzes centradas com o lavatório acendem/apagam',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}5`, group: '5 — Resguardo de duche', items: [
+        'Abre/fecha','Resguardo selado corretamente',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}6`, group: '6 — Toalheiro eléctrico', items: [
+        'Liga/desliga','Instalado corretamente','Não impede a abertura de porta',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}7`, group: '7 — Revestimento cerâmico', items: [
+        'Sem peças danificadas','Sem manchas de obra','Juntas betumadas correctamente',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}8`, group: '8 — Pavimento', items: [
+        'Sem peças danificadas','Sem manchas de obra','Juntas betumadas correctamente',
+        'Encontro com os paramentos verticais com bom acabamento',
+        'Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}9`, group: '9 — Teto falso', items: [
+        'Sem fissuras ou fendas','Sem humidades','Rebaixos verticais',
+        'Sancas de iluminação com bom acabamento','Sancas/molduras em bom estado','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}10`, group: '10 — Eletricidade', items: [
+        'Interruptores acendem e apagam','Tomadas funcionam corretamente','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}11`, group: '11 — Iluminação', items: [
+        'Pontos de luz funcionam corretamente','LEDs do espelho funcionam corretamente',
+        'Referências correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}12`, group: '12 — Torneiras de segurança', items: [
+        'Abre/fecha a água','Acabamento em bom estado','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}13`, group: '13 — Portas interiores', items: [
+        'Ferragens funcionam corretamente e em bom estado','Batentes de porta colocados corretamente',
+        'Guarnições colocadas corretamente','Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}14`, group: '14 — Vãos exteriores', items: [
+        'Vão exterior com vidro conforme projeto','Abre corretamente','Fecha corretamente',
+        'Estore sobe e baixa corretamente','PVC selado no interior e exterior',
+        'Acabamentos correspondem ao projeto','Aspeto estético geral em bom estado',
+      ]},
+      { id: `${q}15`, group: '15 — Extrator eléctrico', items: [
+        'Funciona correctamente','Referência corresponde ao projeto','Aspeto estético geral em bom estado',
+      ]},
+    ]
+  };
+}
+
+const DIVERSOS = {
+  id: 'diversos',
+  name: 'DIVERSOS',
+  icon: '📋',
+  items: [
+    { id: 'div1', group: '1 — Manuais e garantias', items: [
+      'Forno','Microondas','Placa vitrocerâmica','Exaustor',
+      'AVAC','Termoacumulador / Caldeira','Máquina lavar loiça',
+      'Máquina lavar roupa','Splits',
+    ]},
+    { id: 'div2', group: '2 — Limpeza / Lixo', items: [
+      'Não há lixo, caixas ou restos de ferramentas no apartamento/prédio',
+      'Os acessórios excedentes estão todos juntos numa única gaveta',
+      'Obra limpa',
+    ]},
+    { id: 'div3', group: '3 — Estendal', items: [
+      'Guias funcionam corretamente',
+      'Fixação correta',
+    ]},
+  ]
+};
+
+// ════════════════════════════════════════
+//  GOOGLE DRIVE INTEGRATION
+// ════════════════════════════════════════
+const DRIVE_CLIENT_ID = '95430853177-309qsn7cek6qt8e4bp3qobh3ocq901gj.apps.googleusercontent.com';
+const DRIVE_API_KEY   = 'AIzaSyBVxp-ErputbkkyQMsAqQcfTcBJlNEdKac';
+const DRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
+
+let driveToken = null;          // OAuth access token
+let driveFolderId = null;       // pasta principal "CODIGO — Morada"
+let drivePhotoFolderId = null;  // subpasta "fotos"
+let driveJsonFileId = null;     // ID do ficheiro JSON no Drive
+let driveAutoSaveTimer = null;
+let drivePhotoCounters = {};    // itemId -> sequential counter
+
+// ── Restore token from localStorage (persiste entre sessões) ──
+(function() {
+  try {
+    const saved = localStorage.getItem('drive_token_v1');
+    if (saved) {
+      const t = JSON.parse(saved);
+      if (t.token && t.expiry && Date.now() < t.expiry) {
+        driveToken = t.token;
+        updateDriveUI(true);
+      }
+    }
+  } catch(e) {}
+})();
+
+function updateDriveUI(connected) {
+  const dot  = document.getElementById('drive-status-dot');
+  const text = document.getElementById('drive-status-text');
+  const sub  = document.getElementById('drive-status-sub');
+  const btn  = document.getElementById('drive-connect-btn');
+  if (!dot) return;
+  if (connected) {
+    dot.style.background  = '#2a7a4b';
+    text.textContent      = 'Google Drive ligado';
+    sub.textContent       = 'JSON guarda a cada 15 s · fotos sobem em tempo real';
+    btn.textContent       = 'Desligar';
+    btn.style.background  = '#c0392b';
+    btn.onclick           = driveDiconnect;
+  } else {
+    dot.style.background  = '#d0d5dd';
+    text.textContent      = 'Google Drive não ligado';
+    sub.textContent       = 'Ligue para guardar JSON e fotos automaticamente';
+    btn.textContent       = 'Ligar';
+    btn.style.background  = '#406053';
+    btn.onclick           = driveConnect;
+  }
+}
+
+function driveConnect() {
+  if (typeof google === 'undefined' || !google.accounts) {
+    showToast('A carregar Google — tenta novamente em 2 segundos.');
+    return;
+  }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: DRIVE_CLIENT_ID,
+    scope: DRIVE_SCOPES,
+    callback: function(resp) {
+      if (resp.error) { showToast('Erro OAuth: ' + resp.error); return; }
+      driveToken = resp.access_token;
+      const expiry = Date.now() + (resp.expires_in - 60) * 1000;
+      try { localStorage.setItem('drive_token_v1', JSON.stringify({ token: driveToken, expiry })); } catch(e) {}
+      updateDriveUI(true);
+      showToast('✅ Google Drive ligado com sucesso!');
+      // If already in app session, start auto-save immediately
+      if (state.header.codigo || state.header.morada) startDriveAutoSave();
+    }
+  });
+  client.requestAccessToken({ prompt: 'consent' });
+}
+
+function driveDiconnect() {
+  driveToken = null;
+  driveFolderId = null;
+  drivePhotoFolderId = null;
+  driveJsonFileId = null;
+  try { localStorage.removeItem('drive_token_v1'); } catch(e) {}
+  stopDriveAutoSave();
+  updateDriveUI(false);
+  showToast('Google Drive desligado.');
+}
+
+// ── Drive folder helpers ──
+async function driveApiCall(url, options) {
+  if (!driveToken) return null;
+  const resp = await fetch(url, {
+    ...options,
+    headers: { 'Authorization': 'Bearer ' + driveToken, ...(options.headers || {}) }
+  });
+  if (resp.status === 401) { driveDiconnect(); showToast('Sessão Drive expirada. Liga novamente.'); return null; }
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
+async function driveEnsureFolder(name, parentId) {
+  // Search for existing folder
+  let q = `mimeType='application/vnd.google-apps.folder' and name=${JSON.stringify(name)} and trashed=false`;
+  if (parentId) q += ` and '${parentId}' in parents`;
+  const search = await driveApiCall(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&key=${DRIVE_API_KEY}`,
+    { method: 'GET' }
+  );
+  if (search && search.files && search.files.length > 0) return search.files[0].id;
+  // Create
+  const meta = { name, mimeType: 'application/vnd.google-apps.folder' };
+  if (parentId) meta.parents = [parentId];
+  const created = await driveApiCall(
+    'https://www.googleapis.com/drive/v3/files?fields=id',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(meta)
+    }
+  );
+  return created ? created.id : null;
+}
+
+function driveFolderName() {
+  const c = (state.header.codigo || '').trim();
+  const m = (state.header.morada || '').trim();
+  if (c && m) return c + ' — ' + m;
+  return c || m || 'Vistoria';
+}
+
+async function driveEnsureFolders() {
+  if (driveFolderId && drivePhotoFolderId) return true;
+  const name = driveFolderName();
+  driveFolderId = await driveEnsureFolder(name, null);
+  if (!driveFolderId) return false;
+  drivePhotoFolderId = await driveEnsureFolder('fotos', driveFolderId);
+  return !!drivePhotoFolderId;
+}
+
+// ── JSON save to Drive (no photos — fotos campo limpo) ──
+async function driveSaveJSON() {
+  if (!driveToken) return;
+  const ok = await driveEnsureFolders();
+  if (!ok) return;
+
+  // Build payload WITHOUT base64 photos (substitui por array de nomes de ficheiro)
+  const photosRef = {};
+  for (const [id, arr] of Object.entries(state.photos)) {
+    photosRef[id] = (arr || []).map(function(item) {
+      // Se já é um nome de ficheiro (string curta sem "data:"), mantém
+      return (typeof item === 'string' && item.startsWith('data:')) ? null : item;
+    }).filter(Boolean);
+  }
+
+  const payload = JSON.stringify({
+    state: { answers: state.answers, obs: state.obs, header: state.header, photos: photosRef },
+    counts: counts,
+    ts: Date.now()
+  }, null, 2);
+
+  const codigo = state.header.codigo || 'vistoria';
+  const fileName = codigo + '_vistoria.json';
+  const blob = new Blob([payload], { type: 'application/json' });
+
+  if (driveJsonFileId) {
+    // Update existing file (PATCH)
+    await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${driveJsonFileId}?uploadType=media`,
+      {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
+        body: blob
+      }
+    );
+  } else {
+    // Search for existing file in folder
+    const q = `name=${JSON.stringify(fileName)} and '${driveFolderId}' in parents and trashed=false`;
+    const search = await driveApiCall(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&key=${DRIVE_API_KEY}`,
+      { method: 'GET' }
+    );
+    if (search && search.files && search.files.length > 0) {
+      driveJsonFileId = search.files[0].id;
+      await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${driveJsonFileId}?uploadType=media`,
+        {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
+          body: blob
+        }
+      );
+    } else {
+      // Create new multipart upload
+      const meta = JSON.stringify({ name: fileName, parents: [driveFolderId] });
+      const boundary = 'vistoria_boundary_xyz';
+      const body = [
+        '--' + boundary,
+        'Content-Type: application/json; charset=UTF-8',
+        '',
+        meta,
+        '--' + boundary,
+        'Content-Type: application/json',
+        '',
+        payload,
+        '--' + boundary + '--'
+      ].join('\r\n');
+      const resp = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + driveToken,
+            'Content-Type': `multipart/related; boundary=${boundary}`
+          },
+          body: body
+        }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        driveJsonFileId = data.id;
+      }
+    }
+  }
+}
+
+// ── Photo upload to Drive ──
+async function driveUploadPhoto(itemId, file) {
+  if (!driveToken) return null;
+  const ok = await driveEnsureFolders();
+  if (!ok) return null;
+
+  if (!drivePhotoCounters[itemId]) drivePhotoCounters[itemId] = 1;
+  else drivePhotoCounters[itemId]++;
+  const idx = String(drivePhotoCounters[itemId]).padStart(3, '0');
+  const ext = file.type === 'image/png' ? 'png' : 'jpg';
+  const fileName = `foto_${itemId}_${idx}.${ext}`;
+
+  const boundary = 'photo_boundary_xyz';
+  const metaStr = JSON.stringify({ name: fileName, parents: [drivePhotoFolderId] });
+
+  const arrayBuf = await file.arrayBuffer();
+
+  // Multipart upload: meta + binary
+  const encoder = new TextEncoder();
+  const metaPart = encoder.encode(
+    '--' + boundary + '\r\n' +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    metaStr + '\r\n' +
+    '--' + boundary + '\r\n' +
+    'Content-Type: ' + file.type + '\r\n\r\n'
+  );
+  const endPart = encoder.encode('\r\n--' + boundary + '--');
+  const combined = new Uint8Array(metaPart.length + arrayBuf.byteLength + endPart.length);
+  combined.set(metaPart, 0);
+  combined.set(new Uint8Array(arrayBuf), metaPart.length);
+  combined.set(endPart, metaPart.length + arrayBuf.byteLength);
+
+  const resp = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + driveToken,
+        'Content-Type': `multipart/related; boundary=${boundary}`
+      },
+      body: combined
+    }
+  );
+  if (!resp.ok) return null;
+  return fileName;  // return filename (not base64)
+}
+
+// ── Auto-save timer ──
+function startDriveAutoSave() {
+  stopDriveAutoSave();
+  driveAutoSaveTimer = setInterval(async function() {
+    if (!driveToken) return;
+    await driveSaveJSON();
+  }, 15000);
+}
+
+function stopDriveAutoSave() {
+  if (driveAutoSaveTimer) { clearInterval(driveAutoSaveTimer); driveAutoSaveTimer = null; }
+}
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let state = {
+  sections: [],        // built from template + config
+  answers: {},         // itemId -> 'sim'|'nao'|'parcial'|'na'|null
+  obs: {},             // itemId -> string
+  photos: {},          // itemId -> [dataURL or filename, ...]
+  header: {},
+};
+
+let counts = { quartos: 1, is: 1 };
+let currentPhotoItemId = null;
+
+// ── Persistent storage: localStorage preferred, sessionStorage fallback (Drive/cloud) ──
+const SAVE_KEY = 'vistoria_state_v1';
+
+function _storage() {
+  try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); return localStorage; }
+  catch(e) { return sessionStorage; }
+}
+
+function saveState() {
+  try {
+    const payload = JSON.stringify({
+      state: { answers: state.answers, obs: state.obs, header: state.header, photos: state.photos },
+      counts: counts,
+      ts: Date.now()
+    });
+    _storage().setItem(SAVE_KEY, payload);
+  } catch(e) { /* quota exceeded or private mode — silent fail */ }
+}
+
+function loadState() {
+  try {
+    const raw = _storage().getItem(SAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+function clearSavedState() {
+  try { _storage().removeItem(SAVE_KEY); } catch(e) {}
+}
+
+function exportSession() {
+  // Always saves locally as JSON backup
+  const payload = JSON.stringify({
+    state: { answers: state.answers, obs: state.obs, header: state.header, photos: state.photos },
+    counts: counts,
+    ts: Date.now()
+  }, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const codigo = state.header.codigo || 'vistoria';
+  a.href = url;
+  a.download = 'sessao_' + codigo + '_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  // Also push to Drive if connected
+  if (driveToken) {
+    driveSaveJSON().then(function() { showToast('💾 Guardado localmente e no Google Drive.'); });
+  } else {
+    showToast('Sessão guardada como ficheiro JSON.');
+  }
+}
+
+function importSession(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.state || !data.counts) throw new Error('Formato inválido');
+      applyRestoredState(data);
+      showToast('Sessão retomada com sucesso!');
+    } catch(err) {
+      alert('Erro ao importar sessão: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function applyRestoredState(data) {
+  counts = data.counts;
+  document.getElementById('val-quartos').textContent = counts.quartos;
+  document.getElementById('val-is').textContent = counts.is;
+  // Restore header fields
+  const h = data.state.header || {};
+  ['codigo','morada','empreiteiro','rep','data','tecnico'].forEach(function(k) {
+    const el = document.getElementById('inp-' + k);
+    if (el && h[k]) el.value = h[k];
+  });
+  // Store restored data to be picked up by startApp
+  window._restoredStateData = data;
+  showToast('Dados restaurados. Clique "Iniciar Vistoria" para continuar.');
+}
+
+// ════════════════════════════════════════
+//  SETUP
+// ════════════════════════════════════════
+function adjustCount(key, delta) {
+  const min = key === 'quartos' ? 0 : 0;
+  const max = key === 'quartos' ? 6 : 4;
+  counts[key] = Math.max(min, Math.min(max, counts[key] + delta));
+  document.getElementById(`val-${key}`).textContent = counts[key];
+}
+
+function buildSections() {
+  const sections = [...TEMPLATE_SECTIONS];
+  // Insert quartos after SALA
+  for (let i = 1; i <= counts.quartos; i++) {
+    sections.push(makeQuarto(i));
+  }
+  // Then IS
+  for (let i = 1; i <= counts.is; i++) {
+    sections.push(makeIS(i));
+  }
+  sections.push(DIVERSOS);
+  return sections;
+}
+
+function startApp() {
+  try {
+  state.header = {
+    codigo: document.getElementById('inp-codigo').value,
+    morada: document.getElementById('inp-morada').value,
+    empreiteiro: document.getElementById('inp-empreiteiro').value,
+    rep: document.getElementById('inp-rep').value,
+    data: document.getElementById('inp-data').value,
+    tecnico: document.getElementById('inp-tecnico').value,
+  };
+
+  state.sections = buildSections();
+
+  // Pre-build answers map
+  state.answers = {};
+  state.obs = {};
+  state.photos = {};
+  for (const sec of state.sections) {
+    for (const grp of sec.items) {
+      for (let i = 0; i < grp.items.length; i++) {
+        const id = `${grp.id}_${i}`;
+        state.answers[id] = null;
+        state.obs[id] = '';
+        state.photos[id] = [];
+      }
+    }
+  }
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('header-morada').textContent = (state.header.codigo ? state.header.codigo + ' · ' : '') + (state.header.morada || '—');
+
+  renderSections();
+
+  // Start Drive auto-save if already authenticated
+  if (driveToken) startDriveAutoSave();
+
+  // Restore saved answers/obs/photos if available
+  const restored = window._restoredStateData || loadState();
+  if (restored && restored.state) {
+    const rs = restored.state;
+    // Only restore if header matches (same imóvel)
+    if (rs.answers) {
+      for (const [id, val] of Object.entries(rs.answers)) {
+        if (id in state.answers && val) {
+          state.answers[id] = val;
+          // Update UI
+          const card = document.getElementById('ic-' + id);
+          if (card) card.className = 'item-card answered answered-' + val;
+          ['sim','nao','parcial','na'].forEach(function(v) {
+            const btn = document.getElementById('opt-' + id + '-' + v);
+            if (btn) btn.className = 'opt-btn' + (val === v ? ' active-' + v : '');
+          });
+        }
+      }
+    }
+    if (rs.obs) {
+      for (const [id, val] of Object.entries(rs.obs)) {
+        if (id in state.obs && val) {
+          state.obs[id] = val;
+          const ta = document.getElementById('obs-' + id);
+          if (ta) ta.value = val;
+        }
+      }
+    }
+    if (rs.photos) {
+      for (const [id, photos] of Object.entries(rs.photos)) {
+        if (id in state.photos && photos && photos.length) {
+          state.photos[id] = photos;
+          renderPhotoRow(id);
+          // Show obs panel if photos exist
+          const wrap = document.getElementById('obs-wrap-' + id);
+          if (wrap) wrap.style.display = 'block';
+        }
+      }
+    }
+    // Update all section statuses
+    for (const sec of state.sections) updateSectionStatus(sec.id);
+    if (restored.state.answers && Object.values(restored.state.answers).some(Boolean)) {
+      showToast('Sessão anterior restaurada automaticamente.');
+    }
+  }
+  window._restoredStateData = null;
+
+  updateProgress();
+  } catch(err) {
+    alert('Erro ao iniciar: ' + err.message);
+  }
+}
+
+// ════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════
+function renderSections() {
+  const wrap = document.getElementById('sections-wrap');
+
+  // Cabeçalho card
+  const cab = document.createElement('div');
+  cab.className = 'cabecalho-card';
+  cab.innerHTML = `
+    <div class="cabecalho-header" onclick="toggleCabecalho()">
+      <div class="section-icon">📋</div>
+      <div class="section-info">
+        <div class="section-name">Cabeçalho</div>
+        <div class="section-meta"><span class="section-progress-text">Dados da vistoria</span></div>
+      </div>
+      <svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="cab-chev"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="cabecalho-body" id="cabecalho-body">
+      <div class="field-row">
+        <div class="field-label">Código do Imóvel</div>
+        <input class="field-input" id="f-codigo" value="${state.header.codigo || ''}" placeholder="Código do imóvel (ex: LV000)">
+      </div>
+      <div class="field-row">
+        <div class="field-label">Morada</div>
+        <input class="field-input" id="f-morada" value="${state.header.morada || ''}" placeholder="Morada do imóvel">
+      </div>
+      <div class="field-row">
+        <div class="field-label">Empreiteiro</div>
+        <input class="field-input" id="f-empreiteiro" value="${state.header.empreiteiro || ''}" placeholder="Empreiteiro">
+      </div>
+      <div class="field-row">
+        <div class="field-label">Representante legal do empreiteiro</div>
+        <input class="field-input" id="f-rep" value="${state.header.rep || ''}" placeholder="Representante legal">
+      </div>
+      <div class="field-row-2col">
+        <div>
+          <div class="field-label">Data</div>
+          <input class="field-input" id="f-data" type="date" value="${state.header.data || ''}">
+        </div>
+        <div>
+          <div class="field-label">Técnico</div>
+          <input class="field-input" id="f-tecnico" value="${state.header.tecnico || 'Pedro Gonçalves'}">
+        </div>
+      </div>
+    </div>
+  `;
+  wrap.appendChild(cab);
+
+  // Section blocks
+  for (const sec of state.sections) {
+    const block = document.createElement('div');
+    block.className = 'section-block';
+    block.id = `sec-${sec.id}`;
+
+    // Count items
+    let total = 0;
+    for (const grp of sec.items) total += grp.items.length;
+
+    block.innerHTML = `
+      <div class="section-header" onclick="toggleSection('${sec.id}')">
+        <div class="section-icon">${sec.icon}</div>
+        <div class="section-info">
+          <div class="section-name">${sec.name}</div>
+          <div class="section-meta">
+            <span class="section-progress-text" id="sp-${sec.id}">0 / ${total}</span>
+            <span class="section-badge" id="sb-${sec.id}">por verificar</span>
+          </div>
+        </div>
+        <div class="section-done-tick"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body">
+        <div class="section-body-inner" id="sb-body-${sec.id}">
+          ${renderSectionBody(sec)}
+        </div>
+      </div>
+    `;
+    wrap.appendChild(block);
+  }
+}
+
+function renderSectionBody(sec) {
+  let html = '';
+  for (const grp of sec.items) {
+    html += `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;padding:6px 0 2px;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted)">${grp.group}</span>
+        <button class="group-na-btn" id="grp-na-${grp.id}" onclick="setGroupNA('${grp.id}',${grp.items.length})">N/A grupo</button>
+      </div>`;
+    for (let i = 0; i < grp.items.length; i++) {
+      const id = `${grp.id}_${i}`;
+      html += `
+        <div class="item-card" id="ic-${id}">
+          <div class="item-question">${grp.items[i]}</div>
+          <div class="item-options">
+            <button class="opt-btn" id="opt-${id}-sim" onclick="setAnswer('${id}','sim')">Sim</button>
+            <button class="opt-btn" id="opt-${id}-nao" onclick="setAnswer('${id}','nao')">Não</button>
+            <button class="opt-btn" id="opt-${id}-parcial" onclick="setAnswer('${id}','parcial')">Parcial</button>
+            <button class="opt-btn" id="opt-${id}-na" onclick="setAnswer('${id}','na')">N/A</button>
+          </div>
+          <div class="item-obs-toggle" onclick="toggleObs('${id}')">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span id="obs-toggle-label-${id}">Adicionar nota ou foto</span>
+          </div>
+          <div class="item-obs-wrap" id="obs-wrap-${id}">
+            <textarea class="item-obs-area" id="obs-${id}" placeholder="Observações..." oninput="saveObs('${id}',this.value)">${state.obs[id] || ''}</textarea>
+            <div class="photo-row" id="photo-row-${id}">
+              <div class="photo-add-btn" onclick="addPhoto('${id}')">
+                <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Foto
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+  return html;
+}
+
+function setGroupNA(grpId, count) {
+  // Check if ALL items in group are already N/A → toggle off
+  const allNA = Array.from({length: count}, (_,i) => state.answers[`${grpId}_${i}`] === 'na').every(Boolean);
+  const newVal = allNA ? null : 'na';
+
+  for (let i = 0; i < count; i++) {
+    const id = `${grpId}_${i}`;
+    state.answers[id] = newVal;
+    const card = document.getElementById(`ic-${id}`);
+    if (card) card.className = 'item-card' + (newVal ? ` answered answered-${newVal}` : '');
+    ['sim','nao','parcial','na'].forEach(v => {
+      const btn = document.getElementById(`opt-${id}-${v}`);
+      if (btn) btn.className = 'opt-btn' + (newVal === v ? ` active-${v}` : '');
+    });
+  }
+
+  // Update the group button state
+  const grpBtn = document.getElementById(`grp-na-${grpId}`);
+  if (grpBtn) grpBtn.classList.toggle('active', !allNA);
+
+  // Find section and update
+  let secId = null;
+  for (const sec of state.sections) {
+    if (sec.items.some(g => g.id === grpId)) { secId = sec.id; break; }
+  }
+  updateSectionStatus(secId);
+  updateProgress();
+}
+
+function toggleCabecalho() {
+  const body = document.getElementById('cabecalho-body');
+  const chev = document.getElementById('cab-chev');
+  const open = body.classList.toggle('is-open');
+  chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function toggleSection(id) {
+  const block = document.getElementById(`sec-${id}`);
+  const wasOpen = block.classList.contains('is-open');
+  // Close all
+  document.querySelectorAll('.section-block.is-open').forEach(b => b.classList.remove('is-open'));
+  if (!wasOpen) block.classList.add('is-open');
+}
+
+// ════════════════════════════════════════
+//  ANSWERS
+// ════════════════════════════════════════
+function setAnswer(id, val) {
+  const prev = state.answers[id];
+  state.answers[id] = (prev === val) ? null : val; // toggle off if same
+
+  // UI update
+  const card = document.getElementById(`ic-${id}`);
+  card.className = 'item-card' + (state.answers[id] ? ` answered answered-${state.answers[id]}` : '');
+
+  ['sim','nao','parcial','na'].forEach(v => {
+    const btn = document.getElementById(`opt-${id}-${v}`);
+    btn.className = 'opt-btn' + (state.answers[id] === v ? ` active-${v}` : '');
+  });
+
+  updateSectionStatus(getSectionIdFromItemId(id));
+  updateProgress();
+  saveState();
+}
+
+function saveObs(id, val) {
+  state.obs[id] = val;
+  saveState();
+}
+
+function toggleObs(id) {
+  const wrap = document.getElementById(`obs-wrap-${id}`);
+  const label = document.getElementById(`obs-toggle-label-${id}`);
+  const open = wrap.style.display === 'block';
+  wrap.style.display = open ? 'none' : 'block';
+  label.textContent = open ? 'Adicionar nota ou foto' : 'Fechar notas';
+}
+
+function getSectionIdFromItemId(itemId) {
+  // itemId is like "g0_0" or "Q1_2"
+  // We find which section owns it
+  for (const sec of state.sections) {
+    for (const grp of sec.items) {
+      for (let i = 0; i < grp.items.length; i++) {
+        if (`${grp.id}_${i}` === itemId) return sec.id;
+      }
+    }
+  }
+  return null;
+}
+
+function updateSectionStatus(secId) {
+  if (!secId) return;
+  const sec = state.sections.find(s => s.id === secId);
+  if (!sec) return;
+
+  let total = 0, answered = 0;
+  for (const grp of sec.items) {
+    for (let i = 0; i < grp.items.length; i++) {
+      total++;
+      if (state.answers[`${grp.id}_${i}`]) answered++;
+    }
+  }
+
+  const block = document.getElementById(`sec-${secId}`);
+  const spEl = document.getElementById(`sp-${secId}`);
+  const sbEl = document.getElementById(`sb-${secId}`);
+
+  spEl.textContent = `${answered} / ${total}`;
+
+  const done = answered === total;
+  block.classList.toggle('is-done', done);
+  sbEl.textContent = done ? 'Completo ✓' : answered > 0 ? `${total - answered} por preencher` : 'por verificar';
+}
+
+function updateProgress() {
+  let total = 0, answered = 0;
+  let counts_ans = { sim: 0, nao: 0, parcial: 0, na: 0 };
+
+  for (const [id, val] of Object.entries(state.answers)) {
+    total++;
+    if (val) {
+      answered++;
+      counts_ans[val]++;
+    }
+  }
+
+  const pct = total > 0 ? (answered / total) * 100 : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `${answered} / ${total}`;
+  document.getElementById('sum-sim').textContent = `✓ ${counts_ans.sim}`;
+  document.getElementById('sum-nao').textContent = `✗ ${counts_ans.nao}`;
+  document.getElementById('sum-parcial').textContent = `◑ ${counts_ans.parcial}`;
+  document.getElementById('sum-na').textContent = `— ${counts_ans.na}`;
+}
+
+// ════════════════════════════════════════
+//  PHOTOS
+// ════════════════════════════════════════
+function addPhoto(itemId) {
+  currentPhotoItemId = itemId;
+  const modal = document.getElementById('photo-source-modal');
+  modal.style.display = 'flex';
+}
+
+(function() {
+  function closePhotoModal() {
+    document.getElementById('photo-source-modal').style.display = 'none';
+  }
+
+  function bindPhotoInput(inputId, isCamera) {
+    const fi = document.getElementById(inputId);
+    fi.onchange = function(e) {
+      handlePhotos(e);
+      closePhotoModal();
+    };
+    return fi;
+  }
+
+  document.getElementById('psm-camera').onclick = function() {
+    const fi = bindPhotoInput('file-input-camera', true);
+    fi.value = '';
+    fi.click();
+  };
+
+  document.getElementById('psm-gallery').onclick = function() {
+    const fi = bindPhotoInput('file-input-gallery', false);
+    fi.value = '';
+    fi.click();
+  };
+
+  document.getElementById('psm-cancel').onclick = closePhotoModal;
+
+  // Close on backdrop tap
+  document.getElementById('photo-source-modal').onclick = function(e) {
+    if (e.target === this) closePhotoModal();
+  };
+})();
+
+function handlePhotos(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  const id = currentPhotoItemId;
+
+  files.forEach(file => {
+    if (driveToken) {
+      // ── Drive mode: upload directly, store filename reference ──
+      showToast('⬆️ A enviar foto para Drive...');
+      driveUploadPhoto(id, file).then(function(fileName) {
+        if (fileName) {
+          state.photos[id] = state.photos[id] || [];
+          state.photos[id].push('drive:' + fileName);
+          renderPhotoRow(id);
+          saveState();
+          showToast('📸 Foto guardada no Drive: ' + fileName);
+        } else {
+          showToast('⚠️ Erro ao enviar foto. Guardada localmente.');
+          _fallbackBase64(file, id);
+        }
+      }).catch(function() {
+        _fallbackBase64(file, id);
+      });
+    } else {
+      // ── Offline mode: keep base64 locally ──
+      _fallbackBase64(file, id);
+    }
+  });
+
+  e.target.value = '';
+  // Open obs if not already
+  const wrap = document.getElementById(`obs-wrap-${id}`);
+  if (wrap && wrap.style.display !== 'block') toggleObs(id);
+}
+
+function _fallbackBase64(file, id) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    state.photos[id] = state.photos[id] || [];
+    state.photos[id].push(ev.target.result);
+    renderPhotoRow(id);
+    saveState();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderPhotoRow(id) {
+  const row = document.getElementById(`photo-row-${id}`);
+  row.innerHTML = '';
+  (state.photos[id] || []).forEach((src, idx) => {
+    if (src && src.startsWith('drive:')) {
+      // Drive-uploaded photo: show a placeholder tile with filename
+      const tile = document.createElement('div');
+      tile.style.cssText = 'width:60px;height:60px;border-radius:6px;border:1.5px solid var(--border);background:#e8f5ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:default;';
+      tile.innerHTML = '<span style="font-size:18px">📸</span><span style="font-size:8px;color:#2a7a4b;font-weight:600;text-align:center;padding:0 3px;word-break:break-all;line-height:1.1">' + src.replace('drive:','') + '</span>';
+      row.appendChild(tile);
+    } else {
+      const img = document.createElement('img');
+      img.className = 'photo-thumb';
+      img.src = src;
+      img.onclick = () => openPhoto(src);
+      row.appendChild(img);
+    }
+  });
+  // Add button
+  const btn = document.createElement('div');
+  btn.className = 'photo-add-btn';
+  btn.onclick = () => addPhoto(id);
+  btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span style="font-size:10px;font-weight:500;color:var(--text-muted)">Foto</span>`;
+  row.appendChild(btn);
+}
+
+function openPhoto(src) {
+  document.getElementById('photo-modal-img').src = src;
+  document.getElementById('photo-modal').classList.add('open');
+}
+function closePhoto() {
+  document.getElementById('photo-modal').classList.remove('open');
+}
+
+// ════════════════════════════════════════
+//  LIMPAR DADOS
+// ════════════════════════════════════════
+function clearAllData() {
+  if (!confirm('Apagar todos os dados da vistoria?\nO seu nome será mantido.')) return;
+  const tecnico = state.header.tecnico;
+  // Reset state
+  state.header = { codigo:'', morada:'', empreiteiro:'', rep:'', data:'', tecnico };
+  state.answers = {};
+  state.notes = {};
+  state.photos = {};
+  saveState();
+  // Reset form fields
+  document.getElementById('inp-codigo').value = '';
+  document.getElementById('inp-morada').value = '';
+  document.getElementById('inp-empreiteiro').value = '';
+  document.getElementById('inp-rep').value = '';
+  document.getElementById('inp-data').value = '';
+  // inp-tecnico keeps its value
+  showToast('Dados apagados. Pronto para nova vistoria.');
+}
+
+// ════════════════════════════════════════
+//  AUTO DE RECEÇÃO DE OBRA
+// ════════════════════════════════════════
+function openAutoReceção() {
+  // Pre-fill date fields with today if empty
+  const today = new Date().toISOString().split('T')[0];
+  const arAdj = document.getElementById('ar-adjudicacao');
+  const arIni = document.getElementById('ar-inicio');
+  const arDataAuto = document.getElementById('ar-data-auto');
+  if (!arAdj.value) arAdj.value = today;
+  if (!arIni.value) arIni.value = today;
+  if (!arDataAuto.value) arDataAuto.value = today;
+  document.getElementById('auto-recep-modal').style.display = 'flex';
+}
+
+function exportAutoReceção() {
+  const nipcRaw   = document.getElementById('ar-nipc').value.trim().replace(/\D/g,'');
+  if (nipcRaw.length !== 9) {
+    const inp = document.getElementById('ar-nipc');
+    inp.style.border = '2px solid #c0392b';
+    inp.style.background = '#fdecea';
+    inp.focus();
+    alert('O NIPC deve ter exactamente 9 dígitos.');
+    return;
+  }
+  document.getElementById('ar-nipc').style.border = '1.5px solid #dde2ea';
+  document.getElementById('ar-nipc').style.background = '';
+  const nipc = `${nipcRaw.slice(0,3)}.${nipcRaw.slice(3,6)}.${nipcRaw.slice(6,9)}`;
+  const adjDate   = document.getElementById('ar-adjudicacao').value;
+  const concelho  = document.getElementById('ar-concelho').value.trim() || '____________';
+  const inicioDate= document.getElementById('ar-inicio').value;
+  const dataAuto  = document.getElementById('ar-data-auto').value;
+
+  function fmtDate(d) {
+    if (!d) return '___ / ___ / ______';
+    const [y,m,day] = d.split('-');
+    return `${day} / ${m} / ${y}`;
+  }
+  function fmtDateLong(d) {
+    if (!d) return '__ de __________ de ____';
+    const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const dt = new Date(d + 'T12:00:00');
+    return `${dt.getDate()} de ${months[dt.getMonth()]} de ${dt.getFullYear()}`;
+  }
+
+  const h = state.header;
+  const visitoriaDate = h.data ? fmtDateLong(h.data) : fmtDateLong(new Date().toISOString().split('T')[0]);
+  const autoDate = fmtDateLong(dataAuto || new Date().toISOString().split('T')[0]);
+
+  const html = `<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=794, initial-scale=1.0">
+<title>Auto de Receção de Obra — ${h.codigo || 'LV000'}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; font-synthesis:none; }
+  body { font-family:Verdana,Geneva,sans-serif; font-size:12px; color:#1a2332; background:white; padding:40px 50px; width:794px; max-width:794px; line-height:1.7; }
+  @media print { body { padding:20px 30px; width:auto; max-width:none; } }
+  h1 { font-size:16px; font-weight:700; text-align:center; margin-bottom:24px; text-transform:uppercase; letter-spacing:0.05em; }
+  .section-title { font-size:11px; font-weight:700; color:#406053; text-transform:uppercase; letter-spacing:0.08em; margin:20px 0 8px; border-bottom:2px solid #406053; padding-bottom:4px; }
+  p { margin-bottom:10px; text-align:justify; }
+  .sig-block { margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+  .sig-line { border-top:1px solid #1a2332; padding-top:6px; font-size:11px; color:#6b7a8d; margin-top:40px; }
+  .ref { font-size:10px; color:#9aa3b0; text-align:right; margin-top:30px; }
+  .footer { position:fixed; bottom:20px; left:50px; right:50px; display:flex; justify-content:flex-start; font-size:10px; color:#9aa3b0; }
+  @media print { .footer { position:fixed; bottom:10px; left:30px; right:30px; } }
+  .header-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:30px; padding-bottom:16px; border-bottom:3px solid #406053; }
+  .header-bar .title-block .doc-title { font-size:18px; font-weight:700; color:#406053; letter-spacing:0.03em; }
+  .header-bar .title-block .doc-sub { font-size:10px; color:#9aa3b0; letter-spacing:0.06em; margin-top:2px; }
+  .header-bar .meta { text-align:right; font-size:11px; color:#6b7a8d; }
+</style>
+<script>window.addEventListener('load',function(){ setTimeout(function(){ window.print(); },600); });<\/script>
+</head>
+<body>
+
+<div class="header-bar">
+  <div class="title-block">
+    <div class="doc-title">AUTO DE RECEÇÃO DE OBRA</div>
+    <div class="doc-sub">${h.codigo || 'LV000'} · ${h.morada || ''}</div>
+  </div>
+  <div class="meta">${fmtDate(dataAuto)}</div>
+</div>
+
+<div class="section-title">Identificação das Partes e Objeto</div>
+
+<p><strong>Dono da Obra:</strong> GILMAR BASSANGUE &amp; EDUARDO MONTEIRO LDA, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva 518.031.373.</p>
+
+<p><strong>Empreiteiro:</strong> ${h.empreiteiro || '________________________________'}, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva ${nipc}.</p>
+
+<p><strong>Empreitada</strong> de Remodelação/Melhoramento do imóvel sito na <strong>${h.morada || '________________________________'}</strong>, adjudicada ao Empreiteiro acima identificado, por contrato datado de ${fmtDate(adjDate)}.</p>
+
+<div class="section-title">Auto de Receção de Obra</div>
+
+<p>A ${autoDate}, os abaixo assinados <strong>${h.tecnico || '_____________________________'}</strong> (representante do Dono de Obra) e <strong>${h.rep || '_____________________________'}</strong> (representante do Empreiteiro), compareceram na ${h.morada || 'Rua ________________________________'}, concelho de <strong>${concelho}</strong>, onde se procedeu, à realização da mencionada empreitada, a fim de se promover a VISTORIA de natureza técnica da obra, que teve o seu início em ${fmtDate(inicioDate)}, com vista à sua RECEÇÃO.</p>
+
+<p>Tendo sido examinada toda a obra e verificados todos os trabalhos realizados pelo Empreiteiro, com base no projeto e demais elementos técnicos, verificou-se que os mesmos se encontram executados em conformidade e sem anomalias, podendo, por isso, efetuar-se a RECEÇÃO DA OBRA mencionada em epígrafe.</p>
+
+<p>Face ao exposto, iniciam-se, na presente data, os períodos de Garantia estipulados no Contrato de Empreitada acima identificado e na legislação aplicável.</p>
+
+<p>Faz parte integrante do presente auto a CheckList Vistoria Final de Obra.</p>
+
+<p>Para os devidos e legais efeitos lavra-se o presente auto que vai assinado por ambas as Partes.</p>
+
+<div class="sig-block">
+  <div>
+    <div class="sig-line">Assinatura do representante do Dono de Obra</div>
+  </div>
+  <div>
+    <div class="sig-line">Assinatura do representante do Empreiteiro</div>
+  </div>
+</div>
+
+<div class="footer">
+  <span>${h.codigo || 'LV000'}</span>
+</div>
+
+</body></html>`;
+
+  document.getElementById('auto-recep-modal').style.display = 'none';
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// ════════════════════════════════════════
+//  EXPORT PDF
+// ════════════════════════════════════════
+function exportPDF() {
+  showToast("A gerar PDF, aguarde…");
+  // Sync header values from form
+  state.header.codigo    = document.getElementById('f-codigo')?.value || state.header.codigo;
+  state.header.morada    = document.getElementById('f-morada')?.value || state.header.morada;
+  state.header.empreiteiro = document.getElementById('f-empreiteiro')?.value || state.header.empreiteiro;
+  state.header.rep       = document.getElementById('f-rep')?.value || state.header.rep;
+  state.header.data      = document.getElementById('f-data')?.value || state.header.data;
+  state.header.tecnico   = document.getElementById('f-tecnico')?.value || state.header.tecnico;
+
+  const formatDate = (d) => {
+    if (!d) return '—';
+    const [y,m,day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  };
+
+  const optLabel = { sim: 'Sim', nao: 'Não', parcial: 'Parcial', na: 'N/A' };
+  const optColor = { sim: '#2a7a4b', nao: '#c0392b', parcial: '#d97706', na: '#6b7a8d' };
+  const optBg    = { sim: '#e8f5ee', nao: '#fdecea', parcial: '#fef3e0', na: '#f0f2f5' };
+
+  let totalItems = 0, totalAnswered = 0;
+  let counts_ans = { sim: 0, nao: 0, parcial: 0, na: 0 };
+  for (const [id, val] of Object.entries(state.answers)) {
+    totalItems++;
+    if (val) { totalAnswered++; counts_ans[val]++; }
+  }
+
+  let sectionsHTML = '';
+  for (const sec of state.sections) {
+    let secTotal = 0, secAnswered = 0;
+    for (const grp of sec.items) {
+      for (let i = 0; i < grp.items.length; i++) {
+        secTotal++;
+        if (state.answers[`${grp.id}_${i}`]) secAnswered++;
+      }
+    }
+    const secDone = secTotal === secAnswered;
+
+    let groupsHTML = '';
+    for (const grp of sec.items) {
+      let itemsHTML = '';
+      for (let i = 0; i < grp.items.length; i++) {
+        const id = `${grp.id}_${i}`;
+        const val = state.answers[id];
+        const obs = state.obs[id];
+        const photos = state.photos[id] || [];
+
+        const badge = val
+          ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${optBg[val]};color:${optColor[val]}">${optLabel[val]}</span>`
+          : `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#f0f2f5;color:#9aa5b4">Por verificar</span>`;
+
+        const obsBlock = obs ? `<div style="margin-top:4px;font-size:11px;color:#555;background:#f8f9fb;border-left:3px solid #dde2ea;padding:4px 8px;border-radius:0 4px 4px 0">${obs}</div>` : '';
+
+        let photosBlock = '';
+        if (photos.length) {
+          photosBlock = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">`;
+          photos.forEach(src => {
+            // Render at natural aspect ratio, capped at 300px on shorter side
+            photosBlock += `<img src="${src}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
+          });
+          photosBlock += `</div>`;
+        }
+
+        itemsHTML += `
+          <tr>
+            <td style="padding:7px 10px;font-size:12px;color:#406053;border-bottom:1px solid #edf0f4;vertical-align:top;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
+              ${grp.items[i]}
+              ${obsBlock}
+              ${photosBlock}
+            </td>
+            <td style="padding:7px 10px;border-bottom:1px solid #edf0f4;vertical-align:top;text-align:right;white-space:nowrap;font-family:Helvetica,Arial,sans-serif">${badge}</td>
+          </tr>`;
+      }
+
+      groupsHTML += `
+        <div style="margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7a8d;padding:5px 0 3px;border-bottom:1px solid #edf0f4;margin-bottom:4px">${grp.group}</div>
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:75%"><col style="width:25%"></colgroup>${itemsHTML}</table>
+        </div>`;
+    }
+
+    const doneTag = secDone
+      ? `<span style="background:#e8f5ee;color:#2a7a4b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-left:8px">✓ COMPLETO</span>`
+      : `<span style="background:#f0f2f5;color:#6b7a8d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-left:8px">${secAnswered}/${secTotal}</span>`;
+
+    sectionsHTML += `
+      <div style="margin-bottom:20px;page-break-before:always;page-break-inside:auto">
+        <div style="background:#406053;color:white;padding:9px 14px;border-radius:7px 7px 0 0;display:flex;align-items:center;justify-content:space-between;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+          <span style="font-size:13px;font-weight:700">${sec.icon} ${sec.name}</span>
+          ${doneTag}
+        </div>
+        <div style="background:white;border:1px solid #dde2ea;border-top:none;border-radius:0 0 7px 7px;padding:12px 14px;-webkit-print-color-adjust:exact;print-color-adjust:exact;outline:1px solid #dde2ea;outline-offset:-1px">
+          ${groupsHTML}
+        </div>
+      </div>`;
+  }
+
+  const pct = totalItems > 0 ? Math.round((totalAnswered / totalItems) * 100) : 0;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=794, initial-scale=1.0, shrink-to-fit=no">
+<title>Vistoria Final de Obra</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-synthesis: none; font-variant-ligatures: none; }
+  body { font-family: Verdana, Geneva, sans-serif; font-size: 11px; color: #1a2332; background: white; padding: 20px; width: 794px; max-width: 794px; }
+  @media print {
+    body { padding: 0; width: auto; max-width: none; }
+    .no-print { display: none !important; }
+    html, body, * { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-synthesis: none; }
+  }
+  @page {
+    size: A4;
+    margin: 14mm 12mm 12mm 12mm;
+    @top-left { content: "Vistoria Final de Obra"; font-family: Verdana, Geneva, sans-serif; font-size: 9px; font-weight: 600; color: #444; }
+    @top-right { content: var(--print-ref); font-family: Verdana, Geneva, sans-serif; font-size: 9px; color: #555; }
+    @bottom-left { content: var(--print-ref); font-family: Verdana, Geneva, sans-serif; font-size: 9px; color: #888; }
+    @bottom-right { content: counter(page) " / " counter(pages); font-family: Verdana, Geneva, sans-serif; font-size: 9px; color: #888; }
+  }
+</style>
+</head>
+<body>
+  <!-- Header -->
+  <div style="border:2px solid #406053;border-radius:8px;overflow:hidden;margin-bottom:20px">
+    <div style="background:#406053;color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:center;flex-shrink:0"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEA3ADcAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCACZAgQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDwyiiioPlwooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooB3Zxk/SlwfQ/lQOzEooyM47+lFAgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKA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MQRsPQ7Rux7Zwaq53/W6e/Lqe6ftz/tJWXjB/wDhX3hm6S60y1nEmqXkRDJNKh+WJT3CsMk/3gPQ5+PaAAoAAwB6dKKR59So6suZhRRRSMgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z" style="height:30px;width:auto;display:block"></div>
+        <div>
+          <div style="font-size:16px;font-weight:700;font-family:Verdana, Geneva, sans-serif;letter-spacing:0.04em">VISTORIA FINAL DE OBRA</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);margin-top:2px;font-family:Verdana, Geneva, sans-serif;letter-spacing:0.06em;font-weight:400">CHECKLIST DE VERIFICAÇÃO · ${state.header.codigo || '—'}</div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;font-family:Verdana, Geneva, sans-serif">
+        <div style="font-size:11px;color:rgba(255,255,255,0.75);font-weight:600">${formatDate(state.header.data)}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.65);font-weight:400">${state.header.tecnico || '—'}</div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px;background:#f5f7fb;border-top:3px solid #c8973a;font-family:Verdana, Geneva, sans-serif">
+      <div style="word-break:break-word;overflow-wrap:break-word"><span style="font-weight:700;color:#6b7a8d;font-size:10px;text-transform:uppercase;letter-spacing:0.06em">Código / Morada</span><br><strong>${state.header.codigo || '—'}</strong> · ${state.header.morada || '—'}</div>
+      <div style="word-break:break-word;overflow-wrap:break-word"><span style="font-weight:700;color:#6b7a8d;font-size:10px;text-transform:uppercase;letter-spacing:0.06em">Empreiteiro</span><br>${state.header.empreiteiro || '—'}</div>
+      <div style="word-break:break-word;overflow-wrap:break-word"><span style="font-weight:700;color:#6b7a8d;font-size:10px;text-transform:uppercase;letter-spacing:0.06em">Representante Legal</span><br>${state.header.rep || '—'}</div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px;font-family:Verdana, Geneva, sans-serif">
+    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f5f4f0;border-radius:7px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:700;color:#406053">${pct}%</div>
+      <div style="font-size:10px;color:#6b7a8d;font-weight:600;text-transform:uppercase">Completo</div>
+    </div>
+    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e8f5ee;border-radius:7px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:700;color:#2a7a4b">${counts_ans.sim}</div>
+      <div style="font-size:10px;color:#2a7a4b;font-weight:600;text-transform:uppercase">Sim</div>
+    </div>
+    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fdecea;border-radius:7px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:700;color:#c0392b">${counts_ans.nao}</div>
+      <div style="font-size:10px;color:#c0392b;font-weight:600;text-transform:uppercase">Não</div>
+    </div>
+    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fef3e0;border-radius:7px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:700;color:#d97706">${counts_ans.parcial}</div>
+      <div style="font-size:10px;color:#d97706;font-weight:600;text-transform:uppercase">Parcial</div>
+    </div>
+    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f0f2f5;border-radius:7px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:700;color:#6b7a8d">${counts_ans.na}</div>
+      <div style="font-size:10px;color:#6b7a8d;font-weight:600;text-transform:uppercase">N/A</div>
+    </div>
+  </div>
+
+  <!-- Sections -->
+  ${sectionsHTML}
+
+  <!-- Signatures -->
+  <div style="page-break-before:always;min-height:calc(100vh - 60mm);display:flex;flex-direction:column;justify-content:flex-end">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;page-break-inside:avoid">
+    <div style="border-top:2px solid #406053;padding-top:8px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7a8d;margin-bottom:4px">Representante da Obra</div>
+      <div style="font-size:13px;font-weight:700">${state.header.tecnico || 'Pedro Gonçalves'}</div>
+      <div style="font-size:11px;color:#6b7a8d;margin-top:2px">Data: ${formatDate(state.header.data)}</div>
+      <div style="margin-top:30px;border-top:1px dashed #ccc;padding-top:4px;font-size:10px;color:#aaa">Assinatura</div>
+    </div>
+    <div style="border-top:2px solid #406053;padding-top:8px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7a8d;margin-bottom:4px">Representante Legal (Empreiteiro)</div>
+      <div style="font-size:13px;font-weight:700">${state.header.rep || '—'}</div>
+      <div style="font-size:11px;color:#6b7a8d;margin-top:2px">Data: ${formatDate(state.header.data)}</div>
+      <div style="margin-top:30px;border-top:1px dashed #ccc;padding-top:4px;font-size:10px;color:#aaa">Assinatura</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="no-print" style="margin-top:30px;text-align:center">
+    <button onclick="window.print()" style="padding:12px 32px;background:#406053;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🖨️ Imprimir / Guardar PDF</button>
+  </div>
+</body>
+</html>`;
+
+  // Open in new window and trigger print-to-PDF silently
+  const codigoStr = (state.header.codigo || state.header.morada || 'vistoria').replace(/[^a-zA-Z0-9À-ú\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
+  const dataStr = (state.header.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+  const filename = `Vistoria_${codigoStr}_${dataStr}`;
+
+  // Inject auto-print script + hidden title trick into the HTML
+  const printTitle = 'Vistoria Final de Obra \u2014 ' + (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
+  const printRef = (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
+
+  // No wrapper needed — @page margin boxes handle header/footer
+  const hdrHtml = '';
+  const ftrHtml = '';
+
+  const printHtml = html
+    .replace('</head>',
+      `<style>:root{--print-ref:"${printRef.replace(/"/g,"'")}"}<\/style></head>`)
+    .replace('<div class="no-print"', '<div class="no-print" style="display:none"');
+
+  // ── Print: blob URL with inline auto-print script ──
+  // The script runs inside the opened document's own context —
+  // this works on Android Chrome (file://), desktop, and Drive.
+  const autoScript = '<scr' + 'ipt>window.addEventListener(\'load\',function(){' +
+    'document.title=' + JSON.stringify(printTitle) + ';' +
+    'setTimeout(function(){window.print();},500);' +
+    '});</scr' + 'ipt>';
+
+  const printHtmlFinal = printHtml.replace('</head>', autoScript + '</head>');
+  const blob = new Blob([printHtmlFinal], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const newWin = window.open(blobUrl, '_blank');
+
+  if (!newWin) {
+    fallbackDownload(html, filename);
+  } else {
+    setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 60000);
+  }
+}
+
+function fallbackDownload(html, filename) {
+  // Last resort: download HTML file — user opens it and uses Share → Print
+  try {
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename + '.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
+    showToast('Ficheiro HTML guardado — abre-o e usa Partilhar → Imprimir.');
+  } catch(e2) {
+    showToast('Não foi possível gerar o PDF. Tenta noutro browser.');
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── Keyboard scroll: compatible with Xiaomi MIUI + Chrome file:// ──
+(function() {
+  function nudge(el) {
+    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+    var rect = el.getBoundingClientRect();
+    var vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    var mid = vvHeight / 2;
+    var elMid = rect.top + rect.height / 2;
+    if (elMid > mid) {
+      // Element is below centre of visible area — scroll it into view manually
+      var scrollAmt = elMid - mid + 20;
+      window.scrollBy({ top: scrollAmt, behavior: 'smooth' });
+    }
+  }
+
+  document.addEventListener('focusin', function(e) {
+    var el = e.target;
+    setTimeout(function() { nudge(el); }, 350);
+    setTimeout(function() { nudge(el); }, 750);
+  });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function() {
+      setTimeout(function() { nudge(document.activeElement); }, 100);
+    });
+  } else {
+    // Fallback for older MIUI WebViews without visualViewport
+    window.addEventListener('resize', function() {
+      setTimeout(function() { nudge(document.activeElement); }, 150);
+    });
+  }
+})();
+
+// ── Iniciar Vistoria: onclick only — touchend+preventDefault breaks Xiaomi/MIUI Chrome ──
+// No custom touch handlers. Pure onclick is the most compatible approach for file:// on Android.
+
+
+document.getElementById('photo-modal').addEventListener('click', function(e) {
+  if (e.target === this) closePhoto();
+});
+
+// ── Auto-restore setup screen from saved state on page load ──
+(function() {
+  var saved = loadState();
+  if (!saved || !saved.state || !saved.state.header) return;
+  var h = saved.state.header;
+  var hasData = h.codigo || h.morada || h.empreiteiro;
+  if (!hasData) return;
+
+  // Restore counts
+  if (saved.counts) {
+    counts = saved.counts;
+    document.getElementById('val-quartos').textContent = counts.quartos;
+    document.getElementById('val-is').textContent = counts.is;
+  }
+
+  // Restore header fields
+  ['codigo','morada','empreiteiro','rep','data','tecnico'].forEach(function(k) {
+    var el = document.getElementById('inp-' + k);
+    if (el && h[k]) el.value = h[k];
+  });
+
+  // Store for startApp to pick up
+  window._restoredStateData = saved;
+
+  // Show indicator
+  var ind = document.getElementById('autosave-indicator');
+  if (ind) {
+    var d = new Date(saved.ts);
+    var dateStr = d.toLocaleDateString('pt-PT') + ' ' + d.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'});
+    ind.textContent = '💾 Sessão guardada automaticamente em ' + dateStr;
+    ind.style.display = 'block';
+  }
+})();
+
+// ── PWA Service Worker ──
+if ('serviceWorker' in navigator) {
+  const sw = `
+    const CACHE='vistoria-v1';
+    self.addEventListener('install',e=>{self.skipWaiting()});
+    self.addEventListener('fetch',e=>{
+      e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>new Response('offline'))));
+    });
+  `;
+  const blob = new Blob([sw], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
