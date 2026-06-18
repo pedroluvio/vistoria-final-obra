@@ -234,3 +234,48 @@ async function uploadPhotoToDrive(file, folderId) {
 
   return response.result.id;
 }
+
+// 6. Carregamento e Restauro de Sessão Guardada no Drive
+async function loadSessionFromDrive(codigoImovel) {
+  if (!userAuthenticated || !currentImovelFolderId) return null;
+
+  const filename = `sessao_${codigoImovel}.json`;
+
+  try {
+    showToast("🔄 A procurar sessão anterior no Google Drive...");
+    
+    // Procura o arquivo JSON específico dentro da pasta do imóvel
+    const query = `name = '${filename}' and '${currentImovelFolderId}' in parents and trashed = false`;
+    const response = await gapi.client.drive.files.list({
+      q: query,
+      fields: 'files(id)'
+    });
+
+    const files = response.result.files;
+
+    if (files && files.length > 0) {
+      showToast("💾 Ficheiro encontrado! A restaurar dados...");
+      
+      // Descarrega o conteúdo do ficheiro JSON
+      const fileResponse = await gapi.client.drive.files.get({
+        fileId: files[0].id,
+        alt: 'media'
+      });
+
+      // Se o retorno já for um objeto, devolvemos. Se for string, convertemos em JSON seguro
+      let sessionData = fileResponse.result;
+      if (typeof sessionData === 'string') {
+        sessionData = JSON.parse(fileResponse.body || fileResponse.result);
+      }
+      
+      return sessionData;
+    } else {
+      showToast("ℹ️ Nenhuma sessão anterior gravada para este código.");
+      return null;
+    }
+  } catch (err) {
+    console.error("Erro ao carregar sessão do Drive:", err);
+    showToast("❌ Falha ao carregar dados do Drive.");
+    return null;
+  }
+}
