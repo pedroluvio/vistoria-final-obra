@@ -36,7 +36,18 @@ function gisLoaded() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
     scope: SCOPES,
-    callback: '', // definido dinamicamente no login
+    ux_mode: 'popup', // Força o modo pop-up nativo e seguro para PWAs
+    callback: (resp) => {
+      if (resp.error !== undefined) {
+        alert("Erro na autenticação: " + resp.error);
+        return;
+      }
+      userAuthenticated = true;
+      // Executa o arranque se a função de callback tiver sido guardada
+      if (typeof handleAuthSuccess === 'function') {
+        handleAuthSuccess();
+      }
+    },
   });
   gisInited = true;
   maybeEnableButtons();
