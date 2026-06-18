@@ -14,9 +14,10 @@ let gapiInited = false;
 let gisInited = false;
 let userAuthenticated = false;
 
-// ID da pasta do imóvel atual no Drive
+// Armazenamento global dos IDs das pastas para comunicação com o app.js
 let currentImovelFolderId = null;
-let photosFolderId = null; // Guardará o ID da subpasta Fotografias_Vistoria
+let photosFolderId = null; 
+let handleAuthSuccess = null; // Guarda temporariamente a ação após o login com sucesso
 
 // 1. Inicializar as APIs da Google assim que a página carrega
 function gapiLoaded() {
@@ -32,20 +33,23 @@ async function initializeGapiClient() {
   maybeEnableButtons();
 }
 
+// CORREÇÃO CRÍTICA: Inicialização blindada para o telemóvel/GitHub Pages
 function gisLoaded() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
     scope: SCOPES,
-    ux_mode: 'popup', // Força o modo pop-up nativo e seguro para PWAs
-    callback: (resp) => {
+    ux_mode: 'popup', // Força a abertura em pop-up isolado no smartphone, evitando o erro 400
+    callback: async (resp) => {
       if (resp.error !== undefined) {
         alert("Erro na autenticação: " + resp.error);
         return;
       }
       userAuthenticated = true;
-      // Executa o arranque se a função de callback tiver sido guardada
+      console.log("Autenticação Google efetuada com sucesso.");
+      
+      // Executa a transição de ecrã no app.js
       if (typeof handleAuthSuccess === 'function') {
-        handleAuthSuccess();
+        await handleAuthSuccess();
       }
     },
   });
@@ -59,16 +63,9 @@ function maybeEnableButtons() {
   }
 }
 
-// 2. Função de Login / Autenticação
+// 2. Chamada de login ativada pelo botão principal
 function authenticateGoogle(callback) {
-  tokenClient.callback = async (resp) => {
-    if (resp.error !== undefined) {
-      alert("Erro na autenticação: " + resp.error);
-      return;
-    }
-    userAuthenticated = true;
-    if (callback) callback();
-  };
+  handleAuthSuccess = callback; // Acopla dinamicamente o fluxo de início da vistoria
 
   if (gapi.client.getToken() === null) {
     tokenClient.requestAccessToken({ prompt: 'consent' });
@@ -77,7 +74,7 @@ function authenticateGoogle(callback) {
   }
 }
 
-// 3. Procurar ou Criar a estrutura de pastas do Imóvel (Correção: Devolve ambos os IDs)
+// 3. Procurar ou Criar a estrutura de pastas do Imóvel
 async function setupImovelDriveStructure(codigoImovel) {
   if (!userAuthenticated) return null;
 
@@ -95,30 +92,44 @@ async function setupImovelDriveStructure(codigoImovel) {
     if (files && files.length > 0) {
       currentImovelFolderId = files[0].id;
       
-      // Procura a subpasta existente de fotos
+      // Localiza a subpasta existente de fotografias para evitar duplicações
       const photoQuery = `name = 'Fotografias_Vistoria' and '${currentImovelFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
       const photoResponse = await gapi.client.drive.files.list({ q: photoQuery, fields: 'files(id)' });
+      
       if (photoResponse.result.files && photoResponse.result.files.length > 0) {
         photosFolderId = photoResponse.result.files[0].id;
       }
-      showToast(`Pasta encontrada para o imóvel ${codigoImovel}.`);
+      showToast(`Pasta detetada para o imóvel ${codigoImovel}.`);
     } else {
       showToast(`A criar nova pasta para o imóvel ${codigoImovel}...`);
       
-      const folderMetadata = { name: codigoImovel, mimeType: 'application/vnd.google-apps.folder' };
-      const folderResponse = await gapi.client.drive.files.create({ resource: folderMetadata, fields: 'id' });
+      // Criação da pasta raiz da vistoria
+      const folderMetadata = {
+        name: codigoImovel,
+        mimeType: 'application/vnd.google-apps.folder'
+      };
+      const folderResponse = await gapi.client.drive.files.create({
+        resource: folderMetadata,
+        fields: 'id',
+      });
       currentImovelFolderId = folderResponse.result.id;
       
+      // Criação da subpasta dedicada para as imagens binárias
       const photoFolderMetadata = {
         name: 'Fotografias_Vistoria',
         mimeType: 'application/vnd.google-apps.folder',
         parents: [currentImovelFolderId]
       };
-      const photoFolderResponse = await gapi.client.drive.files.create({ resource: photoFolderMetadata, fields: 'id' });
+      const photoFolderResponse = await gapi.client.drive.files.create({
+        resource: photoFolderMetadata,
+        fields: 'id',
+      });
       photosFolderId = photoFolderResponse.result.id;
 
       showToast("Estrutura de pastas criada no Drive.");
     }
+    
+    // Retorna as referências limpas para o app.js
     return { rootId: currentImovelFolderId, photosId: photosFolderId };
 
   } catch (err) {
@@ -128,7 +139,7 @@ async function setupImovelDriveStructure(codigoImovel) {
   }
 }
 
-// 4. Guardar o ficheiro JSON de forma otimizada (sem travar por tamanho)
+// 4. Gravação otimizada do ficheiro JSON da sessão (Auto-Save)
 async function saveSessionToDrive(codigoImovel, statePayload) {
   if (!userAuthenticated || !currentImovelFolderId) return;
 
@@ -138,10 +149,15 @@ async function saveSessionToDrive(codigoImovel, statePayload) {
 
   try {
     const query = `name = '${filename}' and '${currentImovelFolderId}' in parents and trashed = false`;
-    const searchResponse = await gapi.client.drive.files.list({ q: query, fields: 'files(id)' });
+    const searchResponse = await gapi.client.drive.files.list({
+      q: query,
+      fields: 'files(id)'
+    });
+    
     const files = searchResponse.result.files;
-
+    
     if (files && files.length > 0) {
+      // Atualização direta (PATCH) do ficheiro existente
       await gapi.client.request({
         path: `/upload/drive/v3/files/${files[0].id}`,
         method: 'PATCH',
@@ -150,6 +166,7 @@ async function saveSessionToDrive(codigoImovel, statePayload) {
       });
       console.log("Auto-save atualizado no Google Drive.");
     } else {
+      // Criação multipart estável para o primeiro ficheiro JSON
       const boundary = 'foo_bar_baz';
       const delimiter = `\r\n--${boundary}\r\n`;
       const closeDelimiter = `\r\n--${boundary}--`;
@@ -175,11 +192,11 @@ async function saveSessionToDrive(codigoImovel, statePayload) {
       console.log("Primeiro auto-save criado no Google Drive.");
     }
   } catch (err) {
-    console.error("Falha ao enviar auto-save para o Drive:", err);
+    console.error("Falha detalhada ao enviar para o Drive:", err);
   }
 }
 
-// 5. Faz upload das fotografias de forma binária e direta para o Drive
+// 5. Upload binário individual de fotografias tiradas em obra
 async function uploadPhotoToDrive(file, folderId) {
   const metadata = {
     name: file.name,
