@@ -203,12 +203,57 @@ body {
 .chip-na { background: var(--na-bg); color: var(--na); }
 .export-fab { padding: 10px 18px; background: var(--navy); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
 
-/* ── REGRAS DE IMPRESSÃO (PDF) ── */
+/* ==========================================
+   REGRAS DE IMPRESSÃO CORPORATIVA (PDF LUVIO)
+   ========================================== */
 @media print {
-  body { background: white; }
-  .app-header, .summary-bar, #toast, .group-na-btn, .item-options, .item-obs-toggle, .photo-add-btn { display: none !important; }
-  .section-body { display: block !important; }
-  .item-card { border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 8px 0; }
-  .section-block { break-inside: avoid; border: 1px solid var(--border); margin-bottom: 15px; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+  /* Força a limpeza de margens do browser e define tamanho A4 */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 10mm 15mm 10mm;
+  }
+  
+  body {
+    background: white !important;
+    color: #1a2332 !important;
+    font-size: 11px !important;
+  }
+
+  /* Oculta toda a interface viva da PWA (botões, barras, menus) */
+  .app-header, .summary-bar, #toast, .group-na-btn, .item-options, .item-obs-toggle, .photo-add-btn, #setup-screen {
+    display: none !important;
+  }
+
+  /* Garante que os blocos de divisões não quebram de forma órfã a meio de uma folha */
+  .section-block {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    border: 1px solid var(--border) !important;
+    margin-bottom: 20px !important;
+    background: white !important;
+  }
+
+  /* Estilização das imagens no relatório impresso com a sua regra */
+  .pdf-photo-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  /* Força o lado menor a 300px e o lado maior a ajustar-se proporcionalmente */
+  .pdf-report-img {
+    height: 300px; /* Lado menor fixo se for paisagem */
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    border: 1px solid #dde2ea;
+  }
+  
+  /* Se a foto for vertical (retrato), o lado menor passa a ser a largura */
+  .pdf-report-img.portrait {
+    width: 300px;
+    height: auto;
+  }
 }
