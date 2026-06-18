@@ -619,12 +619,16 @@
   }
 
   .photo-thumb {
-    width: 60px;
-    height: 60px;
+    min-width: 300px;
+    min-height: 300px;
+    max-width: 100%;
+    width: auto;
+    height: auto;
     border-radius: 6px;
-    object-fit: cover;
+    object-fit: contain;
     border: 1.5px solid var(--border);
     cursor: pointer;
+    display: block;
   }
 
   .photo-add-btn {
@@ -1472,6 +1476,7 @@ let drivePhotoFolderId = null;  // subpasta "fotos"
 let driveJsonFileId = null;     // ID do ficheiro JSON no Drive
 let driveAutoSaveTimer = null;
 let drivePhotoCounters = {};    // itemId -> sequential counter
+let drivePhotoBlobs = {};       // 'drive:filename' -> objectURL (memória da sessão)
 
 // ── Restore token from localStorage (persiste entre sessões) ──
 (function() {
@@ -2258,25 +2263,49 @@ function handlePhotos(e) {
   const id = currentPhotoItemId;
 
   files.forEach(file => {
+    // Always create a local objectURL for immediate display (valid for session duration)
+    const localURL = URL.createObjectURL(file);
+
     if (driveToken) {
-      // ── Drive mode: upload directly, store filename reference ──
-      showToast('⬆️ A enviar foto para Drive...');
+      // ── Drive mode: show image immediately via objectURL, upload in background ──
+      state.photos[id] = state.photos[id] || [];
+      const placeholder = 'drive:uploading_' + Date.now();
+      state.photos[id].push(placeholder);
+      drivePhotoBlobs[placeholder] = localURL;
+      renderPhotoRow(id);
+
       driveUploadPhoto(id, file).then(function(fileName) {
         if (fileName) {
-          state.photos[id] = state.photos[id] || [];
-          state.photos[id].push('drive:' + fileName);
+          const key = 'drive:' + fileName;
+          // Replace placeholder with real key
+          const arr = state.photos[id];
+          const idx = arr.indexOf(placeholder);
+          if (idx !== -1) arr[idx] = key;
+          drivePhotoBlobs[key] = localURL;
+          delete drivePhotoBlobs[placeholder];
           renderPhotoRow(id);
           saveState();
           showToast('📸 Foto guardada no Drive: ' + fileName);
         } else {
           showToast('⚠️ Erro ao enviar foto. Guardada localmente.');
-          _fallbackBase64(file, id);
+          // Downgrade to base64
+          const arr = state.photos[id];
+          const idx = arr.indexOf(placeholder);
+          _fileToBase64(file, function(b64) {
+            if (idx !== -1) arr[idx] = b64;
+            else arr.push(b64);
+            delete drivePhotoBlobs[placeholder];
+            URL.revokeObjectURL(localURL);
+            renderPhotoRow(id);
+            saveState();
+          });
         }
       }).catch(function() {
         _fallbackBase64(file, id);
       });
     } else {
       // ── Offline mode: keep base64 locally ──
+      URL.revokeObjectURL(localURL);
       _fallbackBase64(file, id);
     }
   });
@@ -2287,34 +2316,51 @@ function handlePhotos(e) {
   if (wrap && wrap.style.display !== 'block') toggleObs(id);
 }
 
-function _fallbackBase64(file, id) {
+function _fileToBase64(file, cb) {
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = ev => cb(ev.target.result);
+  reader.readAsDataURL(file);
+}
+
+function _fallbackBase64(file, id) {
+  _fileToBase64(file, function(b64) {
     state.photos[id] = state.photos[id] || [];
-    state.photos[id].push(ev.target.result);
+    state.photos[id].push(b64);
     renderPhotoRow(id);
     saveState();
-  };
-  reader.readAsDataURL(file);
+  });
 }
 
 function renderPhotoRow(id) {
   const row = document.getElementById(`photo-row-${id}`);
   row.innerHTML = '';
-  (state.photos[id] || []).forEach((src, idx) => {
+  (state.photos[id] || []).forEach((src) => {
+    const img = document.createElement('img');
+    img.className = 'photo-thumb';
     if (src && src.startsWith('drive:')) {
-      // Drive-uploaded photo: show a placeholder tile with filename
-      const tile = document.createElement('div');
-      tile.style.cssText = 'width:60px;height:60px;border-radius:6px;border:1.5px solid var(--border);background:#e8f5ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:default;';
-      tile.innerHTML = '<span style="font-size:18px">📸</span><span style="font-size:8px;color:#2a7a4b;font-weight:600;text-align:center;padding:0 3px;word-break:break-all;line-height:1.1">' + src.replace('drive:','') + '</span>';
-      row.appendChild(tile);
+      // Use cached objectURL if available, otherwise show loading placeholder
+      const blobURL = drivePhotoBlobs[src];
+      if (blobURL) {
+        img.src = blobURL;
+        img.onclick = () => openPhoto(blobURL);
+      } else {
+        // Photo from a previous session — no blob available, show label
+        img.style.cssText = 'min-width:0;min-height:0;width:60px;height:60px;object-fit:contain;background:#e8f5ee;';
+        img.alt = src.replace('drive:', '');
+        img.title = src.replace('drive:', '');
+        img.src = '';
+        // Replace with a styled div
+        const tile = document.createElement('div');
+        tile.style.cssText = 'width:60px;height:60px;border-radius:6px;border:1.5px solid var(--border);background:#e8f5ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;';
+        tile.innerHTML = '<span style="font-size:18px">📸</span><span style="font-size:8px;color:#2a7a4b;font-weight:600;text-align:center;padding:0 3px;word-break:break-all;line-height:1.1">' + src.replace('drive:','') + '</span>';
+        row.appendChild(tile);
+        return;
+      }
     } else {
-      const img = document.createElement('img');
-      img.className = 'photo-thumb';
       img.src = src;
       img.onclick = () => openPhoto(src);
-      row.appendChild(img);
     }
+    row.appendChild(img);
   });
   // Add button
   const btn = document.createElement('div');
@@ -2376,11 +2422,24 @@ function exportAutoReceção() {
     inp.style.border = '2px solid #c0392b';
     inp.style.background = '#fdecea';
     inp.focus();
-    alert('O NIPC deve ter exactamente 9 dígitos.');
+    // Show inline error instead of native alert
+    let errEl = document.getElementById('nipc-error-msg');
+    if (!errEl) {
+      errEl = document.createElement('div');
+      errEl.id = 'nipc-error-msg';
+      errEl.style.cssText = 'color:#c0392b;font-size:12px;font-weight:600;margin-top:-8px;margin-bottom:10px;padding:6px 10px;background:#fdecea;border-radius:6px;border:1px solid #f5c6c2';
+      inp.parentNode.insertBefore(errEl, inp.nextSibling);
+    }
+    errEl.textContent = 'O NIPC deve ter exactamente 9 dígitos.';
     return;
   }
+  // Clear error if valid
+  const errElOk = document.getElementById('nipc-error-msg');
+  if (errElOk) errElOk.remove();
   document.getElementById('ar-nipc').style.border = '1.5px solid #dde2ea';
   document.getElementById('ar-nipc').style.background = '';
+  const nipcErrClr = document.getElementById('nipc-error-msg');
+  if (nipcErrClr) nipcErrClr.remove();
   const nipc = `${nipcRaw.slice(0,3)}.${nipcRaw.slice(3,6)}.${nipcRaw.slice(6,9)}`;
   const adjDate   = document.getElementById('ar-adjudicacao').value;
   const concelho  = document.getElementById('ar-concelho').value.trim() || '____________';
@@ -2540,8 +2599,18 @@ function exportPDF() {
         if (photos.length) {
           photosBlock = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">`;
           photos.forEach(src => {
-            // Render at natural aspect ratio, capped at 300px on shorter side
-            photosBlock += `<img src="${src}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
+            // Resolve drive: references to cached objectURL or base64
+            let imgSrc = src;
+            if (src && src.startsWith('drive:')) {
+              imgSrc = drivePhotoBlobs[src] || null;
+            }
+            if (imgSrc) {
+              photosBlock += `<img src="${imgSrc}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
+            } else {
+              // No blob available (session ended) — show filename label
+              const fname = src.replace('drive:','');
+              photosBlock += `<div style="padding:6px 10px;background:#e8f5ee;border-radius:6px;font-size:10px;color:#2a7a4b;font-weight:600">📸 ${fname}</div>`;
+            }
           });
           photosBlock += `</div>`;
         }
