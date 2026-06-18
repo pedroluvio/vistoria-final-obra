@@ -877,8 +877,61 @@ function exportSessionLocal() {
   a.download = `backup_local_${state.header.codigo || 'vistoria'}.json`; a.click();
 }
 
-function exportPDF() {
-  showToast("A preparar relatório...");
+// ════════════════════════════════════════
+//  MOTOR DE EXPORTAÇÃO DE RELATÓRIO PDF
+// ════════════════════════════════════════
+async function exportPDF() {
+  showToast("🔄 A descarregar fotografias da Cloud e a estruturar PDF...");
   syncHeaderDOMToState();
-  window.print();
+
+  // 1. Abre os blocos de todas as secções para que o motor de impressão consiga ler os elementos ocultos
+  document.querySelectorAll('.section-block').forEach(block => {
+    block.classList.add('is-open');
+  });
+
+  // 2. Percorre todas as perguntas para localizar referências de fotos na cloud
+  for (const [itemId, photosArray] of Object.entries(state.photos)) {
+    if (photosArray && photosArray.length > 0) {
+      const photoRowContainer = document.getElementById(`photo-row-${itemId}`);
+      if (photoRowContainer) {
+        // Limpa o indicador de nuvem provisório
+        photoRowContainer.innerHTML = ''; 
+
+        for (const photo of photosArray) {
+          try {
+            // Descarrega o conteúdo binário privado diretamente do Google Drive
+            const driveResponse = await gapi.client.drive.files.get({
+              fileId: photo.id,
+              alt: 'media'
+            });
+
+            // Converte os bytes binários numa string Base64 temporária para exibição local no PDF
+            const base64Url = `data:image/jpeg;base64,${btoa(driveResponse.body)}`;
+            
+            // Cria a tag de imagem estruturada com a regra de dimensionamento técnico
+            const imgElement = document.createElement('img');
+            imgElement.src = base64Url;
+            imgElement.className = 'pdf-report-img';
+            
+            // Validação geométrica: Identifica se a foto é vertical ou horizontal para aplicar os 300px no lado menor
+            imgElement.onload = function() {
+              if (this.naturalHeight > this.naturalWidth) {
+                this.classList.add('portrait'); // Aplica largura 300px se for vertical
+              }
+            };
+
+            photoRowContainer.appendChild(imgElement);
+          } catch (err) {
+            console.error(`Falha ao renderizar a foto ${photo.name} no PDF:`, err);
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Pequena pausa de 800ms para garantir que o processador gráfico do telemóvel/computador renderizou as imagens
+  setTimeout(() => {
+    showToast("💾 Relatório pronto!");
+    window.print();
+  }, 800);
 }
