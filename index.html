@@ -1537,6 +1537,11 @@ function driveConnect() {
       updateDriveUI(true);
       showToast('✅ Google Drive ligado com sucesso!');
       if (state.header.codigo || state.header.morada) startDriveAutoSave();
+      // Se já existem fotos "drive:" no estado (sessão JSON carregada antes de ligar o Drive),
+      // recupera-as agora para aparecerem no layout e no PDF.
+      if (state.photos && Object.values(state.photos).some(arr => (arr||[]).some(p => p && p.startsWith('drive:')))) {
+        driveRestorePhotos();
+      }
     },
     error_callback: function(err) {
       if (err.type === 'popup_closed') return;
@@ -1593,8 +1598,14 @@ async function driveEnsureFolder(name, parentId) {
 }
 
 function driveFolderName() {
-  const c = (state.header.codigo || '').trim();
-  const m = (state.header.morada || '').trim();
+  let c = (state.header.codigo || '').trim();
+  let m = (state.header.morada || '').trim();
+  // Fallback: se startApp ainda não correu mas há uma sessão restaurada pendente
+  if (!c && !m && window._restoredStateData && window._restoredStateData.state && window._restoredStateData.state.header) {
+    const rh = window._restoredStateData.state.header;
+    c = (rh.codigo || '').trim();
+    m = (rh.morada || '').trim();
+  }
   if (c && m) return c + ' — ' + m;
   return c || m || 'Vistoria';
 }
@@ -1759,9 +1770,17 @@ function stopDriveAutoSave() {
 async function driveRestorePhotos() {
   if (!driveToken) return;
 
+  // Fonte de fotos: estado já ativo (após "Iniciar Vistoria") OU dados ainda
+  // pendentes de uma sessão importada antes do clique em "Iniciar Vistoria".
+  const hasActiveState = state.photos && Object.keys(state.photos).length > 0 &&
+    Object.values(state.photos).some(arr => (arr||[]).length > 0);
+  const sourcePhotos = hasActiveState
+    ? state.photos
+    : (window._restoredStateData && window._restoredStateData.state && window._restoredStateData.state.photos) || {};
+
   // Collect all unique drive: references across all items
   const toFetch = {}; // filename -> [itemId, ...]
-  for (const [id, arr] of Object.entries(state.photos)) {
+  for (const [id, arr] of Object.entries(sourcePhotos)) {
     for (const src of (arr || [])) {
       if (src && src.startsWith('drive:') && !drivePhotoBlobs[src]) {
         if (!toFetch[src]) toFetch[src] = [];
@@ -2402,6 +2421,7 @@ function _fallbackBase64(file, id) {
 
 function renderPhotoRow(id) {
   const row = document.getElementById(`photo-row-${id}`);
+  if (!row) return; // DOM ainda não construído (ex: Drive ligado antes de "Iniciar Vistoria")
   row.innerHTML = '';
   (state.photos[id] || []).forEach((src) => {
     const img = document.createElement('img');
