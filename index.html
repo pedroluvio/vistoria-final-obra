@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Vistoria Final de Obra</title>
-<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
@@ -619,16 +618,12 @@
   }
 
   .photo-thumb {
-    min-width: 50px;
-    min-height: 50px;
-    max-width: 100%;
-    width: auto;
-    height: auto;
+    width: 60px;
+    height: 60px;
     border-radius: 6px;
-    object-fit: contain;
+    object-fit: cover;
     border: 1.5px solid var(--border);
     cursor: pointer;
-    display: block;
   }
 
   .photo-add-btn {
@@ -829,6 +824,93 @@
   /* ── hidden file inputs ── */
   #file-input-gallery, #file-input-camera { display: none; }
 
+  /* ── Drive connection status ── */
+  .drive-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    border: 1.5px solid var(--border);
+  }
+  .drive-status-bar.is-disconnected { background: #fef3e0; border-color: #f0d8a8; color: #8a5a00; }
+  .drive-status-bar.is-connected { background: #e8f5ee; border-color: #bfe3cd; color: #1f6b41; }
+  .drive-status-bar.is-connecting { background: #f0f2f5; border-color: var(--border); color: var(--text-muted); }
+  .drive-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .is-disconnected .drive-status-dot { background: #d97706; }
+  .is-connected .drive-status-dot { background: #2a7a4b; }
+  .is-connecting .drive-status-dot { background: #6b7a8d; animation: pulse-dot 1s infinite ease-in-out; }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .drive-status-bar small { font-weight: 400; opacity: 0.85; flex: 1; text-align: right; }
+
+  .hdr-drive-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border-radius: 99px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    border: 1.5px solid transparent;
+    flex-shrink: 0;
+  }
+  .hdr-drive-pill.is-connected { background: rgba(42,122,75,0.18); color: #d6f3e2; }
+  .hdr-drive-pill.is-disconnected { background: rgba(217,119,6,0.22); color: #ffe7c2; }
+  .hdr-drive-pill.is-connecting { background: rgba(255,255,255,0.15); color: #fff; }
+  .hdr-drive-pill .drive-status-dot { width: 6px; height: 6px; }
+  .hdr-drive-pill.is-connected .drive-status-dot { background: #5fd897; }
+  .hdr-drive-pill.is-disconnected .drive-status-dot { background: #ffb74d; }
+  .hdr-drive-pill.is-connecting .drive-status-dot { background: #fff; }
+
+  /* ── NIPC validation ── */
+  .field-error-msg {
+    display: none;
+    font-size: 11px;
+    color: #c0392b;
+    font-weight: 600;
+    margin: -10px 0 14px;
+  }
+  .field-error-msg.show { display: block; }
+  .input-invalid { border-color: #c0392b !important; background: #fdecea !important; }
+
+  /* ── Photo upload state ── */
+  .photo-thumb-wrap { position: relative; display: inline-block; }
+  .photo-thumb-wrap.is-uploading .photo-thumb { opacity: 0.45; }
+  .photo-thumb-wrap .photo-spinner {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+  }
+  .photo-thumb-wrap.is-uploading .photo-spinner { display: flex; }
+  .photo-spinner svg { width: 18px; height: 18px; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .photo-thumb-wrap .photo-fail-badge {
+    display: none;
+    position: absolute;
+    bottom: 2px; right: 2px;
+    background: #c0392b;
+    color: white;
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    font-size: 11px;
+    line-height: 16px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .photo-thumb-wrap.is-failed .photo-fail-badge { display: block; }
+
   @media print {
     body { background: white; }
     .app-header, .summary-bar, #toast { display: none !important; }
@@ -859,6 +941,12 @@
     <div class="setup-card-inner">
     <div class="setup-title" style="color:#406053">Configuração da Vistoria</div>
     <div class="setup-sub">Defina a tipologia do apartamento para ajustar automaticamente os separadores.</div>
+
+    <div class="drive-status-bar is-disconnected" id="drive-status-bar" onclick="onDriveStatusClick()">
+      <div class="drive-status-dot"></div>
+      <span id="drive-status-text">Drive desligado — tocar para ligar</span>
+      <small id="drive-status-sub"></small>
+    </div>
 
     <div class="setup-section">
       <div class="setup-section-label">Tipologia</div>
@@ -894,16 +982,6 @@
 
     <button class="setup-btn" onclick="startApp()">Iniciar Vistoria →</button>
 
-    <!-- Google Drive status -->
-    <div id="drive-status-bar" style="margin-top:12px;padding:11px 14px;border-radius:9px;border:1.5px solid var(--border);background:var(--cream);display:flex;align-items:center;gap:10px;font-size:13px;">
-      <div id="drive-status-dot" style="width:9px;height:9px;border-radius:50%;background:#d0d5dd;flex-shrink:0"></div>
-      <div style="flex:1;min-width:0">
-        <div id="drive-status-text" style="font-weight:600;color:var(--navy)">Google Drive não ligado</div>
-        <div id="drive-status-sub" style="font-size:11px;color:var(--text-muted)">Ligue para guardar JSON e fotos automaticamente</div>
-      </div>
-      <button id="drive-connect-btn" onclick="driveConnect()" style="padding:7px 13px;background:#406053;color:white;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">Ligar</button>
-    </div>
-
     <div style="display:flex;gap:10px;margin-top:10px">
       <button class="setup-btn-secondary" onclick="exportSession()" title="Guarda a sessão actual num ficheiro JSON para poder retomar depois">
         💾 Guardar Sessão
@@ -935,12 +1013,13 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="hdr-drive-pill is-disconnected" id="hdr-drive-pill" onclick="onDriveStatusClick()" title="Estado da ligação ao Google Drive">
+          <div class="drive-status-dot"></div>
+          <span id="hdr-drive-pill-text">Drive</span>
+        </div>
         <button class="hdr-btn" onclick="exportSession()" title="Guardar sessão">
           <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Guardar
-        </button>
-        <button id="hdr-drive-btn" onclick="driveConnect()" title="Google Drive" style="display:none">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2M12 2l10 10-10 10"/></svg>
         </button>
         <button class="hdr-btn" onclick="exportPDF()">
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -1014,11 +1093,11 @@
     <input id="ar-data-auto" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">NIPC do Empreiteiro</div>
-    <input id="ar-nipc" type="tel" pattern="[0-9]*" placeholder="500000000" maxlength="9"
-      oninput="this.value=this.value.replace(/\D/g,''); nipcLiveCheck(this)"
-      onblur="nipcBlurCheck(this)"
+    <input id="ar-nipc" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="500000000" maxlength="9"
+      oninput="validateNIPC()"
       onkeypress="if(!/[0-9]/.test(String.fromCharCode(event.charCode)))event.preventDefault()"
-      style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit;letter-spacing:0.1em">
+      style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit;letter-spacing:0.1em">
+    <div class="field-error-msg" id="ar-nipc-error" style="margin-bottom:14px">NIPC deve ter 9 dígitos</div>
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data de Adjudicação</div>
     <input id="ar-adjudicacao" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
@@ -1038,7 +1117,7 @@
   </div>
 </div>
 
-<iframe id="print-frame" style="display:none;position:fixed;width:1px;height:1px;border:none;left:-9999px;top:-9999px" sandbox="allow-same-origin allow-scripts allow-modals allow-popups"></iframe>
+<iframe id="print-frame" style="display:none;position:fixed;width:0;height:0;border:none;left:-9999px;top:-9999px" sandbox="allow-same-origin allow-scripts allow-modals"></iframe>
 
 <script>
 // ════════════════════════════════════════
@@ -1465,385 +1544,440 @@ const DIVERSOS = {
 };
 
 // ════════════════════════════════════════
-//  GOOGLE DRIVE INTEGRATION
-// ════════════════════════════════════════
-const DRIVE_CLIENT_ID = '95430853177-309qsn7cek6qt8e4bp3qobh3ocq901gj.apps.googleusercontent.com';
-const DRIVE_API_KEY   = 'AIzaSyBVxp-ErputbkkyQMsAqQcfTcBJlNEdKac';
-const DRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.file';
-
-let driveToken = null;          // OAuth access token
-let driveFolderId = null;       // pasta principal "CODIGO — Morada"
-let drivePhotoFolderId = null;  // subpasta "fotos"
-let driveJsonFileId = null;     // ID do ficheiro JSON no Drive
-let driveAutoSaveTimer = null;
-let drivePhotoCounters = {};    // itemId -> sequential counter
-let drivePhotoBlobs = {};       // 'drive:filename' -> objectURL (memória da sessão)
-
-// ── Restore token from localStorage (persiste entre sessões) ──
-(function() {
-  try {
-    const saved = localStorage.getItem('drive_token_v1');
-    if (saved) {
-      const t = JSON.parse(saved);
-      if (t.token && t.expiry && Date.now() < t.expiry) {
-        driveToken = t.token;
-        updateDriveUI(true);
-      }
-    }
-  } catch(e) {}
-})();
-
-function updateDriveUI(connected) {
-  const dot  = document.getElementById('drive-status-dot');
-  const text = document.getElementById('drive-status-text');
-  const sub  = document.getElementById('drive-status-sub');
-  const btn  = document.getElementById('drive-connect-btn');
-  if (!dot) return;
-  if (connected) {
-    dot.style.background  = '#2a7a4b';
-    text.textContent      = 'Google Drive ligado';
-    sub.textContent       = 'JSON guarda a cada 15 s · fotos sobem em tempo real';
-    btn.textContent       = 'Desligar';
-    btn.style.background  = '#c0392b';
-    btn.onclick           = driveDiconnect;
-  } else {
-    dot.style.background  = '#d0d5dd';
-    text.textContent      = 'Google Drive não ligado';
-    sub.textContent       = 'Ligue para guardar JSON e fotos automaticamente';
-    btn.textContent       = 'Ligar';
-    btn.style.background  = '#406053';
-    btn.onclick           = driveConnect;
-  }
-}
-
-function driveConnect() {
-  if (typeof google === 'undefined' || !google.accounts) {
-    showToast('A carregar Google — tenta novamente em 2 segundos.');
-    return;
-  }
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: DRIVE_CLIENT_ID,
-    scope: DRIVE_SCOPES,
-    callback: function(resp) {
-      if (resp.error) {
-        if (resp.error === 'popup_closed_by_user') return; // utilizador fechou — silencioso
-        showToast('Erro OAuth: ' + resp.error);
-        return;
-      }
-      if (!resp.access_token) { showToast('Sem token — tenta novamente.'); return; }
-      driveToken = resp.access_token;
-      const expiry = Date.now() + ((resp.expires_in || 3600) - 60) * 1000;
-      try { localStorage.setItem('drive_token_v1', JSON.stringify({ token: driveToken, expiry })); } catch(e) {}
-      updateDriveUI(true);
-      showToast('✅ Google Drive ligado com sucesso!');
-      if (state.header.codigo || state.header.morada) startDriveAutoSave();
-      // Se já existem fotos "drive:" no estado (sessão JSON carregada antes de ligar o Drive),
-      // recupera-as agora para aparecerem no layout e no PDF.
-      if (state.photos && Object.values(state.photos).some(arr => (arr||[]).some(p => p && p.startsWith('drive:')))) {
-        driveRestorePhotos();
-      }
-    },
-    error_callback: function(err) {
-      if (err.type === 'popup_closed') return;
-      showToast('Erro ao ligar ao Drive: ' + (err.type || JSON.stringify(err)));
-    }
-  });
-  client.requestAccessToken();
-}
-
-function driveDiconnect() {
-  driveToken = null;
-  driveFolderId = null;
-  drivePhotoFolderId = null;
-  driveJsonFileId = null;
-  try { localStorage.removeItem('drive_token_v1'); } catch(e) {}
-  stopDriveAutoSave();
-  updateDriveUI(false);
-  showToast('Google Drive desligado.');
-}
-
-// ── Drive folder helpers ──
-async function driveApiCall(url, options) {
-  if (!driveToken) return null;
-  const resp = await fetch(url, {
-    ...options,
-    headers: { 'Authorization': 'Bearer ' + driveToken, ...(options.headers || {}) }
-  });
-  if (resp.status === 401) { driveDiconnect(); showToast('Sessão Drive expirada. Liga novamente.'); return null; }
-  if (!resp.ok) return null;
-  return resp.json();
-}
-
-async function driveEnsureFolder(name, parentId) {
-  // Search for existing folder
-  let q = `mimeType='application/vnd.google-apps.folder' and name=${JSON.stringify(name)} and trashed=false`;
-  if (parentId) q += ` and '${parentId}' in parents`;
-  const search = await driveApiCall(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`,
-    { method: 'GET' }
-  );
-  if (search && search.files && search.files.length > 0) return search.files[0].id;
-  // Create
-  const meta = { name, mimeType: 'application/vnd.google-apps.folder' };
-  if (parentId) meta.parents = [parentId];
-  const created = await driveApiCall(
-    'https://www.googleapis.com/drive/v3/files?fields=id',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(meta)
-    }
-  );
-  return created ? created.id : null;
-}
-
-function driveFolderName() {
-  let c = (state.header.codigo || '').trim();
-  let m = (state.header.morada || '').trim();
-  // Fallback: se startApp ainda não correu mas há uma sessão restaurada pendente
-  if (!c && !m && window._restoredStateData && window._restoredStateData.state && window._restoredStateData.state.header) {
-    const rh = window._restoredStateData.state.header;
-    c = (rh.codigo || '').trim();
-    m = (rh.morada || '').trim();
-  }
-  if (c && m) return c + ' — ' + m;
-  return c || m || 'Vistoria';
-}
-
-async function driveEnsureFolders() {
-  if (driveFolderId && drivePhotoFolderId) return true;
-  const name = driveFolderName();
-  driveFolderId = await driveEnsureFolder(name, null);
-  if (!driveFolderId) return false;
-  drivePhotoFolderId = await driveEnsureFolder('fotos', driveFolderId);
-  return !!drivePhotoFolderId;
-}
-
-// ── JSON save to Drive (no photos — fotos campo limpo) ──
-async function driveSaveJSON() {
-  if (!driveToken) return;
-  const ok = await driveEnsureFolders();
-  if (!ok) return;
-
-  // Build payload WITHOUT base64 photos (substitui por array de nomes de ficheiro)
-  const photosRef = {};
-  for (const [id, arr] of Object.entries(state.photos)) {
-    photosRef[id] = (arr || []).map(function(item) {
-      // Se já é um nome de ficheiro (string curta sem "data:"), mantém
-      return (typeof item === 'string' && item.startsWith('data:')) ? null : item;
-    }).filter(Boolean);
-  }
-
-  const payload = JSON.stringify({
-    state: { answers: state.answers, obs: state.obs, header: state.header, photos: photosRef },
-    counts: counts,
-    ts: Date.now()
-  }, null, 2);
-
-  const codigo = state.header.codigo || 'vistoria';
-  const fileName = codigo + '_vistoria.json';
-  const blob = new Blob([payload], { type: 'application/json' });
-
-  if (driveJsonFileId) {
-    // Update existing file (PATCH)
-    await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files/${driveJsonFileId}?uploadType=media`,
-      {
-        method: 'PATCH',
-        headers: { 'Authorization': 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
-        body: blob
-      }
-    );
-  } else {
-    // Search for existing file in folder
-    const q = `name=${JSON.stringify(fileName)} and '${driveFolderId}' in parents and trashed=false`;
-    const search = await driveApiCall(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,
-      { method: 'GET' }
-    );
-    if (search && search.files && search.files.length > 0) {
-      driveJsonFileId = search.files[0].id;
-      await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${driveJsonFileId}?uploadType=media`,
-        {
-          method: 'PATCH',
-          headers: { 'Authorization': 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
-          body: blob
-        }
-      );
-    } else {
-      // Create new multipart upload
-      const meta = JSON.stringify({ name: fileName, parents: [driveFolderId] });
-      const boundary = 'vistoria_boundary_xyz';
-      const body = [
-        '--' + boundary,
-        'Content-Type: application/json; charset=UTF-8',
-        '',
-        meta,
-        '--' + boundary,
-        'Content-Type: application/json',
-        '',
-        payload,
-        '--' + boundary + '--'
-      ].join('\r\n');
-      const resp = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + driveToken,
-            'Content-Type': `multipart/related; boundary=${boundary}`
-          },
-          body: body
-        }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        driveJsonFileId = data.id;
-      }
-    }
-  }
-}
-
-// ── Photo upload to Drive ──
-async function driveUploadPhoto(itemId, file) {
-  if (!driveToken) return null;
-  const ok = await driveEnsureFolders();
-  if (!ok) return null;
-
-  if (!drivePhotoCounters[itemId]) drivePhotoCounters[itemId] = 1;
-  else drivePhotoCounters[itemId]++;
-  const idx = String(drivePhotoCounters[itemId]).padStart(3, '0');
-  const ext = file.type === 'image/png' ? 'png' : 'jpg';
-  const fileName = `foto_${itemId}_${idx}.${ext}`;
-
-  const boundary = 'photo_boundary_xyz';
-  const metaStr = JSON.stringify({ name: fileName, parents: [drivePhotoFolderId] });
-
-  const arrayBuf = await file.arrayBuffer();
-
-  // Multipart upload: meta + binary
-  const encoder = new TextEncoder();
-  const metaPart = encoder.encode(
-    '--' + boundary + '\r\n' +
-    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-    metaStr + '\r\n' +
-    '--' + boundary + '\r\n' +
-    'Content-Type: ' + file.type + '\r\n\r\n'
-  );
-  const endPart = encoder.encode('\r\n--' + boundary + '--');
-  const combined = new Uint8Array(metaPart.length + arrayBuf.byteLength + endPart.length);
-  combined.set(metaPart, 0);
-  combined.set(new Uint8Array(arrayBuf), metaPart.length);
-  combined.set(endPart, metaPart.length + arrayBuf.byteLength);
-
-  const resp = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + driveToken,
-        'Content-Type': `multipart/related; boundary=${boundary}`
-      },
-      body: combined
-    }
-  );
-  if (!resp.ok) return null;
-  return fileName;  // return filename (not base64)
-}
-
-// ── Auto-save timer ──
-function startDriveAutoSave() {
-  stopDriveAutoSave();
-  driveAutoSaveTimer = setInterval(async function() {
-    if (!driveToken) return;
-    await driveSaveJSON();
-  }, 15000);
-}
-
-function stopDriveAutoSave() {
-  if (driveAutoSaveTimer) { clearInterval(driveAutoSaveTimer); driveAutoSaveTimer = null; }
-}
-
-// ── Re-download Drive photos after session restore ──
-// Fetches each drive:filename blob so photos appear in field and PDF
-async function driveRestorePhotos() {
-  if (!driveToken) return;
-
-  // Fonte de fotos: estado já ativo (após "Iniciar Vistoria") OU dados ainda
-  // pendentes de uma sessão importada antes do clique em "Iniciar Vistoria".
-  const hasActiveState = state.photos && Object.keys(state.photos).length > 0 &&
-    Object.values(state.photos).some(arr => (arr||[]).length > 0);
-  const sourcePhotos = hasActiveState
-    ? state.photos
-    : (window._restoredStateData && window._restoredStateData.state && window._restoredStateData.state.photos) || {};
-
-  // Collect all unique drive: references across all items
-  const toFetch = {}; // filename -> [itemId, ...]
-  for (const [id, arr] of Object.entries(sourcePhotos)) {
-    for (const src of (arr || [])) {
-      if (src && src.startsWith('drive:') && !drivePhotoBlobs[src]) {
-        if (!toFetch[src]) toFetch[src] = [];
-        toFetch[src].push(id);
-      }
-    }
-  }
-  if (Object.keys(toFetch).length === 0) return;
-
-  // Need the photos folder ID to search by name
-  const ok = await driveEnsureFolders();
-  if (!ok) return;
-
-  for (const [driveKey, itemIds] of Object.entries(toFetch)) {
-    const fileName = driveKey.replace('drive:', '');
-    try {
-      // Search for file by name in the photos folder
-      const q = `name=${JSON.stringify(fileName)} and '${drivePhotoFolderId}' in parents and trashed=false`;
-      const search = await driveApiCall(
-        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,mimeType)`,
-        { method: 'GET' }
-      );
-      if (!search || !search.files || !search.files.length) continue;
-
-      const fileId = search.files[0].id;
-      const mimeType = search.files[0].mimeType || 'image/jpeg';
-
-      // Download file content
-      const resp = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-        { headers: { 'Authorization': 'Bearer ' + driveToken } }
-      );
-      if (!resp.ok) continue;
-
-      const blob = await resp.blob();
-      const objectURL = URL.createObjectURL(new Blob([blob], { type: mimeType }));
-      drivePhotoBlobs[driveKey] = objectURL;
-
-      // Re-render all items that reference this photo
-      const rendered = new Set();
-      for (const id of itemIds) {
-        if (!rendered.has(id)) {
-          renderPhotoRow(id);
-          rendered.add(id);
-        }
-      }
-    } catch(e) { /* skip individual failures */ }
-  }
-}
-
-// ════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════
 let state = {
   sections: [],        // built from template + config
   answers: {},         // itemId -> 'sim'|'nao'|'parcial'|'na'|null
   obs: {},             // itemId -> string
-  photos: {},          // itemId -> [dataURL or filename, ...]
+  photos: {},          // itemId -> [{driveId, tempKey?, name, mimeType, status}, ...] — NEVER base64
   header: {},
 };
 
 let counts = { quartos: 1, is: 1 };
 let currentPhotoItemId = null;
+
+// ════════════════════════════════════════
+//  GOOGLE DRIVE INTEGRATION
+// ════════════════════════════════════════
+const DRIVE_CLIENT_ID = '95430853177-309qsn7cek6qt8e4bp3qobh3ocq901gj.apps.googleusercontent.com';
+const DRIVE_API_KEY    = 'AIzaSyBVxp-ErputbkkyQMsAqQcfTcBJlNEdKac';
+const DRIVE_SCOPES     = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FOLDER_MIME = 'application/vnd.google-apps.folder';
+const DRIVE_JSON_NAME   = 'dados.json';
+const DRIVE_PHOTOS_SUBFOLDER = 'Fotografias';
+const DRIVE_API_FILES  = 'https://www.googleapis.com/drive/v3/files';
+const DRIVE_UPLOAD_FILES = 'https://www.googleapis.com/upload/drive/v3/files';
+
+const driveState = {
+  accessToken: null,
+  tokenExpiresAt: 0,
+  status: 'disconnected',   // 'disconnected' | 'connecting' | 'connected'
+  connected: false,
+  parentFolderId: null,
+  photosFolderId: null,
+  projectFolderName: null,
+  jsonFileId: null,
+};
+
+const photoBlobCache = {};     // key (driveId or tempKey) -> objectURL, for in-app <img> previews
+const photoDataUrlCache = {};  // key -> base64 data URI, for self-contained PDF exports
+let isDirty = false;
+let isSavingToDrive = false;
+let autosaveTimer = null;
+
+// ── OAuth via redirect de página completa (sem popups) ──
+// O fluxo anterior usava google.accounts.oauth2.initTokenClient (GIS), que
+// abre um POPUP para o login. Dentro de uma PWA instalada em modo standalone
+// no Android, esse popup é aberto noutro processo/separador e o canal de
+// retorno (postMessage para o "opener") falha silenciosamente com grande
+// frequência: o login até é concluído no popup, mas o callback nunca chega
+// de volta à app — exatamente o "fica ligado ao ecrã, não liga" e o
+// "bloqueia ao tirar a 3ª foto" (uma renovação silenciosa em fundo ficava
+// pendurada até ao timeout). É uma limitação documentada do próprio modelo
+// de popup em PWAs standalone, não um detalhe de configuração.
+//
+// Solução: navegar a PÁGINA TODA para o ecrã de consentimento da Google
+// (window.location.href) e voltar com o token no fragmento da URL (#...).
+// É uma navegação de topo normal dentro da mesma janela standalone — nunca
+// abre uma segunda janela/processo, por isso funciona de forma fiável.
+//
+// IMPORTANTE (configuração única no Google Cloud Console):
+// em "Credenciais" → o Client ID OAuth → "URIs de redirecionamento
+// autorizados", adicionar exatamente:
+//     https://pedroluvio.github.io/   (ou o caminho exato onde este ficheiro
+//                                       fica publicado, sem # nem ?)
+// Isto é DIFERENTE de "Origens JavaScript autorizadas" (que já lá está).
+// Sem este URI registado, a Google devolve "redirect_uri_mismatch".
+
+const DRIVE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
+const DRIVE_OAUTH_STATE_KEY = 'drive_oauth_state_v1';
+const DRIVE_OAUTH_RESUME_KEY = 'drive_oauth_resume_survey_v1';
+
+function driveRedirectUri() {
+  return location.origin + location.pathname;
+}
+
+function buildDriveAuthUrl() {
+  const nonce = Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
+  _storage().setItem(DRIVE_OAUTH_STATE_KEY, nonce);
+  const params = new URLSearchParams({
+    client_id: DRIVE_CLIENT_ID,
+    redirect_uri: driveRedirectUri(),
+    response_type: 'token',
+    scope: DRIVE_SCOPES,
+    include_granted_scopes: 'true',
+    state: nonce,
+  });
+  return DRIVE_AUTH_ENDPOINT + '?' + params.toString();
+}
+
+// manual = true → toque explícito do utilizador no indicador "Drive".
+// A app navega para fora (ecrã de login da Google) e volta sozinha — ver
+// consumeDriveRedirectToken(), chamado no arranque da página.
+function connectDrive(manual) {
+  try { saveState(); } catch (e) { /* garante que nada se perde na navegação */ }
+  try {
+    const onSurvey = document.getElementById('app-screen') &&
+      document.getElementById('app-screen').style.display === 'block';
+    _storage().setItem(DRIVE_OAUTH_RESUME_KEY, onSurvey ? '1' : '0');
+  } catch (e) {}
+  setDriveStatus('connecting');
+  window.location.href = buildDriveAuthUrl();
+  // A partir daqui a página vai navegar para fora — não há mais nada a
+  // fazer neste lado.
+  return new Promise(function() {}); // nunca resolve nesta navegação
+}
+
+// Chamado uma vez no arranque da página. Se a URL contiver um token (porque
+// acabámos de voltar do ecrã de login da Google), valida e guarda-o.
+// Devolve true se a página foi carregada como retorno de um login.
+function consumeDriveRedirectToken() {
+  if (!location.hash || location.hash.indexOf('access_token') === -1 && location.hash.indexOf('error') === -1) return false;
+  const params = new URLSearchParams(location.hash.slice(1));
+  // Limpa o fragmento da URL imediatamente — nunca deixar o token visível
+  // no endereço nem no histórico do browser.
+  history.replaceState(null, '', location.pathname + location.search);
+
+  const expected = _storage().getItem(DRIVE_OAUTH_STATE_KEY);
+  _storage().removeItem(DRIVE_OAUTH_STATE_KEY);
+
+  const error = params.get('error');
+  if (error) {
+    console.warn('Drive auth error:', error);
+    setDriveStatus('disconnected');
+    showToast('Login Google cancelado ou falhou.');
+    return true;
+  }
+  const token = params.get('access_token');
+  const returnedState = params.get('state');
+  if (!token || !expected || returnedState !== expected) {
+    console.warn('Drive auth: state inválido ou token ausente.');
+    setDriveStatus('disconnected');
+    showToast('Falha na verificação do login Google — tente novamente.');
+    return true;
+  }
+  driveState.accessToken = token;
+  driveState.tokenExpiresAt = Date.now() + (parseInt(params.get('expires_in') || '3600', 10) * 1000) - 60000;
+  setDriveStatus('connected');
+  showToast('Ligado ao Google Drive.');
+  return true;
+}
+
+// Sem popup já não há "renovação silenciosa" possível — quando o token
+// expira (sessões > ~1h), simplesmente marcamos desligado e pedimos ao
+// utilizador para tocar no indicador outra vez. Os dados nunca se perdem:
+// saveState() grava sempre em localStorage independentemente do Drive.
+async function ensureValidToken() {
+  if (driveState.accessToken && Date.now() < driveState.tokenExpiresAt) return driveState.accessToken;
+  driveState.accessToken = null;
+  setDriveStatus('disconnected');
+  throw new Error('Sessão do Drive expirou — toque no indicador "Drive" para voltar a ligar.');
+}
+
+async function driveApiFetch(url, options) {
+  options = options || {};
+  const token = await ensureValidToken();
+  const sep = url.indexOf('?') >= 0 ? '&' : '?';
+  const finalUrl = url + sep + 'key=' + DRIVE_API_KEY;
+  const headers = Object.assign({}, options.headers, { 'Authorization': 'Bearer ' + token });
+  const res = await fetch(finalUrl, Object.assign({}, options, { headers: headers }));
+  if (res.status === 401) {
+    driveState.accessToken = null;
+    setDriveStatus('disconnected');
+    throw new Error('Sessão do Drive expirou — toque no indicador "Drive" para voltar a ligar.');
+  }
+  return res;
+}
+
+function setDriveStatus(s) {
+  driveState.status = s;
+  driveState.connected = (s === 'connected');
+  const bar = document.getElementById('drive-status-bar');
+  const text = document.getElementById('drive-status-text');
+  const sub = document.getElementById('drive-status-sub');
+  const pill = document.getElementById('hdr-drive-pill');
+  const pillText = document.getElementById('hdr-drive-pill-text');
+  const labels = { disconnected: 'Drive desligado — tocar para ligar', connecting: 'A ligar ao Google Drive…', connected: 'Drive ligado' };
+  if (bar) bar.className = 'drive-status-bar is-' + s;
+  if (pill) pill.className = 'hdr-drive-pill is-' + s;
+  if (text) text.textContent = labels[s] || '';
+  if (pillText) pillText.textContent = s === 'connected' ? 'Drive ✓' : (s === 'connecting' ? 'Drive…' : 'Drive');
+  if (sub) sub.textContent = (s === 'connected' && driveState.projectFolderName) ? driveState.projectFolderName : '';
+  if (s === 'connected') startAutosaveTimer(); else stopAutosaveTimer();
+}
+
+function onDriveStatusClick() {
+  if (driveState.status === 'connecting') return;
+  if (driveState.connected) {
+    showToast('Drive ligado' + (driveState.projectFolderName ? ' — ' + driveState.projectFolderName : '') + '.');
+    return;
+  }
+  connectDrive(true);
+}
+
+function escapeDriveQuery(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+async function findFolder(name, parentId) {
+  const q = "name='" + escapeDriveQuery(name) + "' and mimeType='" + DRIVE_FOLDER_MIME + "' and trashed=false and '" +
+    (parentId || 'root') + "' in parents";
+  const res = await driveApiFetch(DRIVE_API_FILES + '?q=' + encodeURIComponent(q) + '&fields=files(id,name)&spaces=drive');
+  if (!res.ok) throw new Error('Erro ao procurar pasta no Drive (' + res.status + ')');
+  const data = await res.json();
+  return (data.files && data.files[0]) ? data.files[0].id : null;
+}
+
+async function createFolder(name, parentId) {
+  const meta = { name: name, mimeType: DRIVE_FOLDER_MIME };
+  if (parentId) meta.parents = [parentId];
+  const res = await driveApiFetch(DRIVE_API_FILES + '?fields=id', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(meta),
+  });
+  if (!res.ok) throw new Error('Erro ao criar pasta no Drive (' + res.status + ')');
+  const data = await res.json();
+  return data.id;
+}
+
+// Always search before creating — prevents duplicate project folders when
+// the same código/morada is reopened across sessions or devices.
+async function findOrCreateFolder(name, parentId) {
+  let id = await findFolder(name, parentId);
+  if (!id) id = await createFolder(name, parentId);
+  return id;
+}
+
+function buildProjectFolderName(codigo, morada) {
+  const c = (codigo != null ? codigo : (state.header.codigo || '')).trim();
+  const m = (morada != null ? morada : (state.header.morada || '')).trim();
+  if (!c && !m) return null;
+  return [c, m].filter(Boolean).join(' + ');
+}
+
+async function ensureProjectFolders() {
+  const folderName = buildProjectFolderName();
+  if (!folderName) throw new Error('Indique o código do imóvel ou a morada antes de sincronizar com o Drive.');
+  if (driveState.parentFolderId && driveState.projectFolderName === folderName) {
+    return { parentFolderId: driveState.parentFolderId, photosFolderId: driveState.photosFolderId };
+  }
+  const parentFolderId = await findOrCreateFolder(folderName, null);
+  const photosFolderId = await findOrCreateFolder(DRIVE_PHOTOS_SUBFOLDER, parentFolderId);
+  driveState.parentFolderId = parentFolderId;
+  driveState.photosFolderId = photosFolderId;
+  driveState.projectFolderName = folderName;
+  driveState.jsonFileId = null;
+  setDriveStatus(driveState.status);
+  return { parentFolderId: parentFolderId, photosFolderId: photosFolderId };
+}
+
+let _photoSeq = 0;
+function buildPhotoFilename(file, itemId) {
+  const ext = (file.type === 'image/png') ? 'png' : 'jpg';
+  _photoSeq++;
+  return itemId + '_' + Date.now() + '_' + _photoSeq + '.' + ext;
+}
+
+// Uploads the actual image bytes (.jpg/.png) into the "Fotografias" subfolder.
+// Returns only the Drive reference — the caller never sees/stores base64.
+async function uploadPhotoToDrive(file, itemId) {
+  await ensureProjectFolders();
+  const metadata = { name: buildPhotoFilename(file, itemId), parents: [driveState.photosFolderId] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await driveApiFetch(DRIVE_UPLOAD_FILES + '?uploadType=multipart&fields=id,name,mimeType', {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) throw new Error('Falha ao enviar fotografia para o Drive (' + res.status + ')');
+  const data = await res.json();
+  return { driveId: data.id, name: data.name, mimeType: data.mimeType || file.type };
+}
+
+function blobToDataUrl(blob) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function() { resolve(reader.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function fetchPhotoBlob(driveId) {
+  if (photoBlobCache[driveId]) return photoBlobCache[driveId];
+  const res = await driveApiFetch(DRIVE_API_FILES + '/' + driveId + '?alt=media');
+  if (!res.ok) throw new Error('Não foi possível obter a fotografia do Drive (' + res.status + ')');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  photoBlobCache[driveId] = url;
+  return url;
+}
+
+async function fetchPhotoDataUrl(driveId) {
+  if (photoDataUrlCache[driveId]) return photoDataUrlCache[driveId];
+  const res = await driveApiFetch(DRIVE_API_FILES + '/' + driveId + '?alt=media');
+  if (!res.ok) throw new Error('Não foi possível obter a fotografia do Drive (' + res.status + ')');
+  const blob = await res.blob();
+  const dataUrl = await blobToDataUrl(blob);
+  photoDataUrlCache[driveId] = dataUrl;
+  return dataUrl;
+}
+
+// Resolves any photo entry (already-uploaded Drive ref, or a still-local
+// pending upload) to a self-contained base64 data URI for use in printable
+// exports — preferring whatever is already cached locally before touching
+// the network, then falling back to a fresh Drive download.
+async function resolvePhotoDataUrl(entry) {
+  const key = entry.driveId || entry.tempKey;
+  if (!key) return null;
+  if (photoDataUrlCache[key]) return photoDataUrlCache[key];
+  const cachedBlobUrl = photoBlobCache[key];
+  if (cachedBlobUrl) {
+    try {
+      const blob = await (await fetch(cachedBlobUrl)).blob();
+      const dataUrl = await blobToDataUrl(blob);
+      photoDataUrlCache[key] = dataUrl;
+      return dataUrl;
+    } catch (e) { /* fall through to Drive */ }
+  }
+  if (entry.driveId) {
+    const dataUrl = await fetchPhotoDataUrl(entry.driveId);
+    photoDataUrlCache[key] = dataUrl;
+    return dataUrl;
+  }
+  return null;
+}
+
+// Strips local-only fields and uploading/failed entries — the persisted
+// JSON (local cache, Drive autosave, and manual export) must contain only
+// Drive references, never base64 and never incomplete uploads.
+function getCleanPhotosForExport() {
+  const out = {};
+  for (const id in state.photos) {
+    const clean = (state.photos[id] || [])
+      .filter(function(p) { return p && p.driveId; })
+      .map(function(p) { return { driveId: p.driveId, name: p.name, mimeType: p.mimeType }; });
+    if (clean.length) out[id] = clean;
+  }
+  return out;
+}
+
+function serializeSession() {
+  return JSON.stringify({
+    state: { answers: state.answers, obs: state.obs, header: state.header, photos: getCleanPhotosForExport() },
+    counts: counts,
+    ts: Date.now(),
+  }, null, 2);
+}
+
+function markDirty() { isDirty = true; }
+
+async function findJsonFileId() {
+  if (driveState.jsonFileId) return driveState.jsonFileId;
+  const q = "name='" + DRIVE_JSON_NAME + "' and '" + driveState.parentFolderId + "' in parents and trashed=false";
+  const res = await driveApiFetch(DRIVE_API_FILES + '?q=' + encodeURIComponent(q) + '&fields=files(id,name)');
+  if (!res.ok) throw new Error('Erro ao procurar ' + DRIVE_JSON_NAME);
+  const data = await res.json();
+  driveState.jsonFileId = (data.files && data.files[0]) ? data.files[0].id : null;
+  return driveState.jsonFileId;
+}
+
+// Saves the JSON snapshot only — never re-uploads photos, which are sent
+// once, immediately, when added (see handlePhotos). This keeps the 15s
+// autosave loop lightweight.
+async function saveJsonToDrive() {
+  if (!driveState.connected) return false;
+  if (!state.header.codigo && !state.header.morada) return false;
+  try {
+    await ensureProjectFolders();
+    const fileId = await findJsonFileId();
+    const payload = serializeSession();
+    const metadata = { name: DRIVE_JSON_NAME, mimeType: 'application/json' };
+    if (!fileId) metadata.parents = [driveState.parentFolderId];
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', new Blob([payload], { type: 'application/json' }));
+    const url = fileId
+      ? DRIVE_UPLOAD_FILES + '/' + fileId + '?uploadType=multipart'
+      : DRIVE_UPLOAD_FILES + '?uploadType=multipart&fields=id';
+    const res = await driveApiFetch(url, { method: fileId ? 'PATCH' : 'POST', body: form });
+    if (!res.ok) throw new Error('Falha ao gravar dados.json no Drive (' + res.status + ')');
+    if (!fileId) { const data = await res.json(); driveState.jsonFileId = data.id; }
+    return true;
+  } catch (e) {
+    console.warn('Autosave Drive falhou:', e);
+    return false;
+  }
+}
+
+function startAutosaveTimer() {
+  stopAutosaveTimer();
+  autosaveTimer = setInterval(async function() {
+    if (!isDirty || isSavingToDrive || !driveState.connected) return;
+    isSavingToDrive = true;
+    const ok = await saveJsonToDrive();
+    isSavingToDrive = false;
+    if (ok) { isDirty = false; flashAutosaveIndicator(); }
+  }, 15000);
+}
+function stopAutosaveTimer() { if (autosaveTimer) clearInterval(autosaveTimer); autosaveTimer = null; }
+
+function flashAutosaveIndicator() {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = '☁️ Sincronizado com o Google Drive';
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 1800);
+}
+
+// Downloads dados.json from inside a known parent folder, if present.
+async function loadSessionFromDrive(parentFolderId) {
+  const q = "name='" + DRIVE_JSON_NAME + "' and '" + parentFolderId + "' in parents and trashed=false";
+  const res = await driveApiFetch(DRIVE_API_FILES + '?q=' + encodeURIComponent(q) + '&fields=files(id,name)');
+  if (!res.ok) throw new Error('Erro ao procurar sessão no Drive (' + res.status + ')');
+  const data = await res.json();
+  const file = data.files && data.files[0];
+  if (!file) return null;
+  driveState.jsonFileId = file.id;
+  const dl = await driveApiFetch(DRIVE_API_FILES + '/' + file.id + '?alt=media');
+  if (!dl.ok) throw new Error('Erro ao obter dados.json (' + dl.status + ')');
+  return await dl.json();
+}
+
+// Downloads every referenced photo so the UI can show real thumbnails —
+// "reidratar a UI na totalidade" per spec #5.
+async function hydratePhotosFromState() {
+  const ids = [];
+  for (const id in state.photos) {
+    for (const ref of (state.photos[id] || [])) {
+      if (ref && ref.driveId && !photoBlobCache[ref.driveId]) ids.push(ref.driveId);
+    }
+  }
+  await Promise.all(ids.map(function(id) {
+    return fetchPhotoBlob(id).catch(function(e) { console.warn('Falha ao carregar foto', id, e); });
+  }));
+}
 
 // ── Persistent storage: localStorage preferred, sessionStorage fallback (Drive/cloud) ──
 const SAVE_KEY = 'vistoria_state_v1';
@@ -1856,12 +1990,13 @@ function _storage() {
 function saveState() {
   try {
     const payload = JSON.stringify({
-      state: { answers: state.answers, obs: state.obs, header: state.header, photos: state.photos },
+      state: { answers: state.answers, obs: state.obs, header: state.header, photos: getCleanPhotosForExport() },
       counts: counts,
       ts: Date.now()
     });
     _storage().setItem(SAVE_KEY, payload);
   } catch(e) { /* quota exceeded or private mode — silent fail */ }
+  markDirty();
 }
 
 function loadState() {
@@ -1877,9 +2012,8 @@ function clearSavedState() {
 }
 
 function exportSession() {
-  // Always saves locally as JSON backup
   const payload = JSON.stringify({
-    state: { answers: state.answers, obs: state.obs, header: state.header, photos: state.photos },
+    state: { answers: state.answers, obs: state.obs, header: state.header, photos: getCleanPhotosForExport() },
     counts: counts,
     ts: Date.now()
   }, null, 2);
@@ -1891,12 +2025,7 @@ function exportSession() {
   a.download = 'sessao_' + codigo + '_' + new Date().toISOString().slice(0,10) + '.json';
   a.click();
   URL.revokeObjectURL(url);
-  // Also push to Drive if connected
-  if (driveToken) {
-    driveSaveJSON().then(function() { showToast('💾 Guardado localmente e no Google Drive.'); });
-  } else {
-    showToast('Sessão guardada como ficheiro JSON.');
-  }
+  showToast('Sessão guardada como ficheiro JSON.');
 }
 
 function importSession(file) {
@@ -1954,7 +2083,7 @@ function buildSections() {
   return sections;
 }
 
-function startApp() {
+async function startApp() {
   try {
   state.header = {
     codigo: document.getElementById('inp-codigo').value,
@@ -1988,11 +2117,26 @@ function startApp() {
 
   renderSections();
 
-  // Start Drive auto-save if already authenticated
-  if (driveToken) startDriveAutoSave();
+  // Restore saved answers/obs/photos: Drive is the source of truth when
+  // connected (spec #5); the local cache is the offline-safe fallback.
+  let restored = window._restoredStateData || loadState();
 
-  // Restore saved answers/obs/photos if available
-  const restored = window._restoredStateData || loadState();
+  if (driveState.connected && (state.header.codigo || state.header.morada)) {
+    try {
+      await ensureProjectFolders();
+      const driveData = await loadSessionFromDrive(driveState.parentFolderId);
+      if (driveData) {
+        restored = driveData;
+        showToast('Sessão carregada do Google Drive.');
+      }
+    } catch (e) {
+      console.warn('Não foi possível carregar sessão do Drive:', e);
+      showToast('Aviso: não foi possível sincronizar com o Drive agora — a usar dados locais.');
+    }
+  } else if (!driveState.connected) {
+    showToast('Drive desligado — toque no indicador "Drive" para guardar fotografias na nuvem.');
+  }
+
   if (restored && restored.state) {
     const rs = restored.state;
     // Only restore if header matches (same imóvel)
@@ -2022,15 +2166,19 @@ function startApp() {
     if (rs.photos) {
       for (const [id, photos] of Object.entries(rs.photos)) {
         if (id in state.photos && photos && photos.length) {
-          state.photos[id] = photos;
+          state.photos[id] = photos.map(function(p) { return Object.assign({ status: 'done' }, p); });
+        }
+      }
+      // Fetch the actual image bytes from Drive for every referenced photo,
+      // then paint the thumbnails — "reidratar a UI na totalidade".
+      await hydratePhotosFromState();
+      for (const id of Object.keys(state.photos)) {
+        if (state.photos[id] && state.photos[id].length) {
           renderPhotoRow(id);
-          // Show obs panel if photos exist
           const wrap = document.getElementById('obs-wrap-' + id);
           if (wrap) wrap.style.display = 'block';
         }
       }
-      // Re-download Drive photos to restore blobs for display and PDF
-      if (driveToken) driveRestorePhotos();
     }
     // Update all section statuses
     for (const sec of state.sections) updateSectionStatus(sec.id);
@@ -2041,6 +2189,7 @@ function startApp() {
   window._restoredStateData = null;
 
   updateProgress();
+  if (driveState.connected) startAutosaveTimer();
   } catch(err) {
     alert('Erro ao iniciar: ' + err.message);
   }
@@ -2345,111 +2494,78 @@ function addPhoto(itemId) {
   };
 })();
 
-function handlePhotos(e) {
+async function handlePhotos(e) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
   const id = currentPhotoItemId;
-
-  files.forEach(file => {
-    // Always create a local objectURL for immediate display (valid for session duration)
-    const localURL = URL.createObjectURL(file);
-
-    if (driveToken) {
-      // ── Drive mode: show image immediately via objectURL, upload in background ──
-      state.photos[id] = state.photos[id] || [];
-      const placeholder = 'drive:uploading_' + Date.now();
-      state.photos[id].push(placeholder);
-      drivePhotoBlobs[placeholder] = localURL;
-      renderPhotoRow(id);
-
-      driveUploadPhoto(id, file).then(function(fileName) {
-        if (fileName) {
-          const key = 'drive:' + fileName;
-          // Replace placeholder with real key
-          const arr = state.photos[id];
-          const idx = arr.indexOf(placeholder);
-          if (idx !== -1) arr[idx] = key;
-          drivePhotoBlobs[key] = localURL;
-          delete drivePhotoBlobs[placeholder];
-          renderPhotoRow(id);
-          saveState();
-          showToast('📸 Foto guardada no Drive: ' + fileName);
-        } else {
-          showToast('⚠️ Erro ao enviar foto. Guardada localmente.');
-          // Downgrade to base64
-          const arr = state.photos[id];
-          const idx = arr.indexOf(placeholder);
-          _fileToBase64(file, function(b64) {
-            if (idx !== -1) arr[idx] = b64;
-            else arr.push(b64);
-            delete drivePhotoBlobs[placeholder];
-            URL.revokeObjectURL(localURL);
-            renderPhotoRow(id);
-            saveState();
-          });
-        }
-      }).catch(function() {
-        _fallbackBase64(file, id);
-      });
-    } else {
-      // ── Offline mode: keep base64 locally ──
-      URL.revokeObjectURL(localURL);
-      _fallbackBase64(file, id);
-    }
-  });
-
   e.target.value = '';
-  // Open obs if not already
+
+  state.photos[id] = state.photos[id] || [];
+
+  // Open obs panel immediately so the user sees photos land as they upload
   const wrap = document.getElementById(`obs-wrap-${id}`);
-  if (wrap && wrap.style.display !== 'block') toggleObs(id);
-}
+  if (wrap.style.display !== 'block') toggleObs(id);
 
-function _fileToBase64(file, cb) {
-  const reader = new FileReader();
-  reader.onload = ev => cb(ev.target.result);
-  reader.readAsDataURL(file);
-}
-
-function _fallbackBase64(file, id) {
-  _fileToBase64(file, function(b64) {
-    state.photos[id] = state.photos[id] || [];
-    state.photos[id].push(b64);
+  for (const file of files) {
+    const tempKey = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    photoBlobCache[tempKey] = URL.createObjectURL(file);
+    const entry = { driveId: null, tempKey: tempKey, name: file.name, mimeType: file.type, status: 'uploading' };
+    state.photos[id].push(entry);
     renderPhotoRow(id);
-    saveState();
-  });
+
+    if (!driveState.connected) {
+      entry.status = 'failed';
+      renderPhotoRow(id);
+      showToast('Drive desligado — ligue para guardar as fotografias.');
+      continue;
+    }
+
+    try {
+      const uploaded = await uploadPhotoToDrive(file, id);
+      // Re-key the local preview under the real Drive id so the report
+      // export can reuse it without re-downloading from Drive.
+      photoBlobCache[uploaded.driveId] = photoBlobCache[tempKey];
+      delete photoBlobCache[tempKey];
+      entry.driveId = uploaded.driveId;
+      entry.name = uploaded.name;
+      entry.mimeType = uploaded.mimeType;
+      entry.status = 'done';
+      delete entry.tempKey;
+      saveState(); // persists the new Drive-only reference to the local cache too
+    } catch (err) {
+      console.warn('Falha ao enviar foto:', err);
+      entry.status = 'failed';
+      showToast('Falha ao enviar fotografia para o Drive.');
+    }
+    renderPhotoRow(id);
+  }
 }
 
 function renderPhotoRow(id) {
   const row = document.getElementById(`photo-row-${id}`);
-  if (!row) return; // DOM ainda não construído (ex: Drive ligado antes de "Iniciar Vistoria")
   row.innerHTML = '';
-  (state.photos[id] || []).forEach((src) => {
+  (state.photos[id] || []).forEach((entry) => {
+    const key = entry.driveId || entry.tempKey;
+    const src = photoBlobCache[key] || '';
+    const wrap = document.createElement('div');
+    wrap.className = 'photo-thumb-wrap' +
+      (entry.status === 'uploading' ? ' is-uploading' : '') +
+      (entry.status === 'failed' ? ' is-failed' : '');
     const img = document.createElement('img');
     img.className = 'photo-thumb';
-    if (src && src.startsWith('drive:')) {
-      // Use cached objectURL if available, otherwise show loading placeholder
-      const blobURL = drivePhotoBlobs[src];
-      if (blobURL) {
-        img.src = blobURL;
-        img.onclick = () => openPhoto(blobURL);
-      } else {
-        // Photo from a previous session — no blob available, show label
-        img.style.cssText = 'min-width:0;min-height:0;width:60px;height:60px;object-fit:contain;background:#e8f5ee;';
-        img.alt = src.replace('drive:', '');
-        img.title = src.replace('drive:', '');
-        img.src = '';
-        // Replace with a styled div
-        const tile = document.createElement('div');
-        tile.style.cssText = 'width:60px;height:60px;border-radius:6px;border:1.5px solid var(--border);background:#e8f5ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;';
-        tile.innerHTML = '<span style="font-size:18px">📸</span><span style="font-size:8px;color:#2a7a4b;font-weight:600;text-align:center;padding:0 3px;word-break:break-all;line-height:1.1">' + src.replace('drive:','') + '</span>';
-        row.appendChild(tile);
-        return;
-      }
-    } else {
-      img.src = src;
-      img.onclick = () => openPhoto(src);
-    }
-    row.appendChild(img);
+    img.src = src;
+    img.onclick = () => { if (src) openPhoto(src); };
+    wrap.appendChild(img);
+    const spinner = document.createElement('div');
+    spinner.className = 'photo-spinner';
+    spinner.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-opacity="0.3"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>';
+    wrap.appendChild(spinner);
+    const failBadge = document.createElement('div');
+    failBadge.className = 'photo-fail-badge';
+    failBadge.textContent = '!';
+    failBadge.title = 'Falha ao enviar para o Drive';
+    wrap.appendChild(failBadge);
+    row.appendChild(wrap);
   });
   // Add button
   const btn = document.createElement('div');
@@ -2479,6 +2595,11 @@ function clearAllData() {
   state.notes = {};
   state.photos = {};
   saveState();
+  // Reset Drive project pointers so the next vistoria creates/finds its own folders
+  driveState.parentFolderId = null;
+  driveState.photosFolderId = null;
+  driveState.projectFolderName = null;
+  driveState.jsonFileId = null;
   // Reset form fields
   document.getElementById('inp-codigo').value = '';
   document.getElementById('inp-morada').value = '';
@@ -2492,6 +2613,96 @@ function clearAllData() {
 // ════════════════════════════════════════
 //  AUTO DE RECEÇÃO DE OBRA
 // ════════════════════════════════════════
+// Shared print mechanism for every exported document (relatório + auto de
+// receção). Deliberately does NOT open a new window/tab: on an installed
+// Android Chrome PWA (standalone display mode), a separate window can
+// land in a different process that can't reliably access blob: URLs, and
+// window.print() on a document built via document.write()/about:blank can
+// silently fail to produce a PDF. Printing from a hidden <iframe> that
+// stays inside the current page sidesteps both problems — no popup, no
+// blob, nothing to be denied access to.
+function printHtmlDocument(htmlContent, title) {
+  return new Promise(function(resolve, reject) {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    let settled = false;
+    function cleanup(delayMs) {
+      setTimeout(function() {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }, delayMs || 0);
+    }
+    function triggerPrint() {
+      if (settled) return;
+      settled = true;
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+      // Give the system print/share sheet time to open before discarding
+      // the iframe — removing it too early can cancel the print job.
+      cleanup(2000);
+    }
+    function waitForImagesThenPrint() {
+      const doc = iframe.contentDocument;
+      const imgs = Array.prototype.slice.call(doc.images);
+      const pending = imgs.filter(function(i) { return !i.complete; });
+      if (!pending.length) { triggerPrint(); return; }
+      let done = 0;
+      function check() { done++; if (done >= pending.length) triggerPrint(); }
+      pending.forEach(function(i) {
+        i.addEventListener('load', check);
+        i.addEventListener('error', check);
+      });
+      setTimeout(triggerPrint, 4000); // hard fallback if an image never settles
+    }
+
+    iframe.onload = function() {
+      try {
+        if (title) { try { iframe.contentDocument.title = title; } catch (e) {} }
+        waitForImagesThenPrint();
+      }
+      catch (e) { settled = true; cleanup(0); reject(e); }
+    };
+    iframe.onerror = function() {
+      settled = true; cleanup(0);
+      reject(new Error('Não foi possível carregar o documento para impressão.'));
+    };
+
+    try {
+      iframe.srcdoc = htmlContent;
+    } catch (e) {
+      // Extremely old engines without srcdoc support
+      const doc = iframe.contentWindow.document;
+      doc.open(); doc.write(htmlContent); doc.close();
+    }
+  });
+}
+
+// Live validation: strips non-digits, then flags anything other than
+// exactly 9 digits with a red border + inline message; clears both the
+// moment the field reaches exactly 9 digits.
+function validateNIPC() {
+  const inp = document.getElementById('ar-nipc');
+  const errEl = document.getElementById('ar-nipc-error');
+  inp.value = inp.value.replace(/\D/g, '').slice(0, 9);
+  const valid = inp.value.length === 9;
+  const showError = inp.value.length > 0 && !valid;
+  inp.classList.toggle('input-invalid', showError);
+  if (errEl) errEl.classList.toggle('show', showError);
+  return valid;
+}
+
 function openAutoReceção() {
   // Pre-fill date fields with today if empty
   const today = new Date().toISOString().split('T')[0];
@@ -2502,50 +2713,16 @@ function openAutoReceção() {
   if (!arIni.value) arIni.value = today;
   if (!arDataAuto.value) arDataAuto.value = today;
   document.getElementById('auto-recep-modal').style.display = 'flex';
+  document.getElementById('ar-nipc').classList.remove('input-invalid');
+  document.getElementById('ar-nipc-error').classList.remove('show');
 }
 
-function _nipcShowError() {
-  const inp = document.getElementById('ar-nipc');
-  inp.style.border = '2px solid #c0392b';
-  inp.style.background = '#fdecea';
-  let errEl = document.getElementById('nipc-error-msg');
-  if (!errEl) {
-    errEl = document.createElement('div');
-    errEl.id = 'nipc-error-msg';
-    errEl.style.cssText = 'color:#c0392b;font-size:12px;font-weight:600;margin-top:-8px;margin-bottom:10px;padding:6px 10px;background:#fdecea;border-radius:6px;border:1px solid #f5c6c2';
-    inp.parentNode.insertBefore(errEl, inp.nextSibling);
-  }
-  errEl.textContent = 'O NIPC deve ter exactamente 9 dígitos.';
-}
-
-function _nipcClearError() {
-  const inp = document.getElementById('ar-nipc');
-  inp.style.border = '1.5px solid #dde2ea';
-  inp.style.background = '';
-  const errEl = document.getElementById('nipc-error-msg');
-  if (errEl) errEl.remove();
-}
-
-// Called on every keystroke: clear error as soon as 9 digits reached
-function nipcLiveCheck(inp) {
-  if (inp.value.length === 9) _nipcClearError();
-}
-
-// Called on blur (focus leaves field): show error if incomplete
-function nipcBlurCheck(inp) {
-  const v = inp.value.trim();
-  if (v.length > 0 && v.length !== 9) _nipcShowError();
-  else if (v.length === 9) _nipcClearError();
-}
-
-function exportAutoReceção() {
-  const nipcRaw   = document.getElementById('ar-nipc').value.trim().replace(/\D/g,'');
-  if (nipcRaw.length !== 9) {
+async function exportAutoReceção() {
+  if (!validateNIPC()) {
     document.getElementById('ar-nipc').focus();
-    _nipcShowError();
     return;
   }
-  _nipcClearError();
+  const nipcRaw   = document.getElementById('ar-nipc').value;
   const nipc = `${nipcRaw.slice(0,3)}.${nipcRaw.slice(3,6)}.${nipcRaw.slice(6,9)}`;
   const adjDate   = document.getElementById('ar-adjudicacao').value;
   const concelho  = document.getElementById('ar-concelho').value.trim() || '____________';
@@ -2591,7 +2768,6 @@ function exportAutoReceção() {
   .header-bar .title-block .doc-sub { font-size:10px; color:#9aa3b0; letter-spacing:0.06em; margin-top:2px; }
   .header-bar .meta { text-align:right; font-size:11px; color:#6b7a8d; }
 </style>
-<script>window.addEventListener('load',function(){ setTimeout(function(){ window.print(); },600); });<\/script>
 </head>
 <body>
 
@@ -2639,16 +2815,26 @@ function exportAutoReceção() {
 </body></html>`;
 
   document.getElementById('auto-recep-modal').style.display = 'none';
-  const h2 = state.header;
-  const filename = 'AutoRececao_' + (h2.codigo || 'LV000') + '_' + (h2.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
-  const title = 'Auto de Receção de Obra — ' + (h2.codigo || 'LV000');
-  printViaIframe(html, title, filename);
+  showToast('A preparar documento para impressão…');
+  try {
+    await printHtmlDocument(html, 'Auto de Receção de Obra — ' + (h.codigo || ''));
+  } catch (e) {
+    console.warn('Impressão via iframe falhou, a tentar alternativa:', e);
+    try {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+    } catch (e2) {
+      showToast('Não foi possível gerar o documento. Tente novamente.');
+    }
+  }
 }
 
 // ════════════════════════════════════════
 //  EXPORT PDF
 // ════════════════════════════════════════
-function exportPDF() {
+async function exportPDF() {
   showToast("A gerar PDF, aguarde…");
   // Sync header values from form
   state.header.codigo    = document.getElementById('f-codigo')?.value || state.header.codigo;
@@ -2674,6 +2860,22 @@ function exportPDF() {
     totalItems++;
     if (val) { totalAnswered++; counts_ans[val]++; }
   }
+
+  // Resolve every referenced photo (Drive ref, or one still finishing its
+  // upload) to a self-contained base64 data URI BEFORE building any HTML —
+  // this is what lets the printed document wait for asynchronously
+  // imported images instead of racing the print dialog against them.
+  const allPhotoEntries = [];
+  for (const arr of Object.values(state.photos)) {
+    for (const entry of (arr || [])) if (entry && (entry.driveId || entry.tempKey)) allPhotoEntries.push(entry);
+  }
+  const photoDataMap = {};
+  await Promise.all(allPhotoEntries.map(async (entry) => {
+    try {
+      const dataUrl = await resolvePhotoDataUrl(entry);
+      if (dataUrl) photoDataMap[entry.driveId || entry.tempKey] = dataUrl;
+    } catch (e) { console.warn('Foto não pôde ser incluída no PDF:', e); }
+  }));
 
   let sectionsHTML = '';
   for (const sec of state.sections) {
@@ -2703,42 +2905,26 @@ function exportPDF() {
 
         let photosBlock = '';
         if (photos.length) {
-          const photoImgs = photos.map(src => {
-            let imgSrc = src;
-            if (src && src.startsWith('drive:')) imgSrc = drivePhotoBlobs[src] || null;
-            if (imgSrc) return `<img src="${imgSrc}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
-            const fname = src.replace('drive:','');
-            return `<div style="padding:6px 10px;background:#e8f5ee;border-radius:6px;font-size:10px;color:#2a7a4b;font-weight:600">📸 ${fname}</div>`;
-          }).join('');
-          photosBlock = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${photoImgs}</div>`;
+          const imgs = photos.map(p => photoDataMap[p.driveId || p.tempKey]).filter(Boolean);
+          if (imgs.length) {
+            photosBlock = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">`;
+            imgs.forEach(src => {
+              // Render at natural aspect ratio, capped at 300px on shorter side
+              photosBlock += `<img src="${src}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
+            });
+            photosBlock += `</div>`;
+          }
         }
 
-        // Items with photos: render as self-contained div with break-inside:avoid
-        // Items without photos: keep in table row (compact)
-        if (photos.length) {
-          itemsHTML += `
-            <tr style="break-inside:avoid;page-break-inside:avoid">
-              <td colspan="2" style="padding:0;border-bottom:1px solid #edf0f4">
-                <div style="break-inside:avoid;page-break-inside:avoid;padding:7px 10px;display:flex;align-items:flex-start;gap:10px;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:12px;color:#406053;font-weight:500">${grp.items[i]}</div>
-                    ${obsBlock}
-                    ${photosBlock}
-                  </div>
-                  <div style="flex-shrink:0;padding-top:2px">${badge}</div>
-                </div>
-              </td>
-            </tr>`;
-        } else {
-          itemsHTML += `
-            <tr>
-              <td style="padding:7px 10px;font-size:12px;color:#406053;border-bottom:1px solid #edf0f4;vertical-align:top;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
-                ${grp.items[i]}
-                ${obsBlock}
-              </td>
-              <td style="padding:7px 10px;border-bottom:1px solid #edf0f4;vertical-align:top;text-align:right;white-space:nowrap;font-family:Helvetica,Arial,sans-serif">${badge}</td>
-            </tr>`;
-        }
+        itemsHTML += `
+          <tr>
+            <td style="padding:7px 10px;font-size:12px;color:#406053;border-bottom:1px solid #edf0f4;vertical-align:top;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
+              ${grp.items[i]}
+              ${obsBlock}
+              ${photosBlock}
+            </td>
+            <td style="padding:7px 10px;border-bottom:1px solid #edf0f4;vertical-align:top;text-align:right;white-space:nowrap;font-family:Helvetica,Arial,sans-serif">${badge}</td>
+          </tr>`;
       }
 
       groupsHTML += `
@@ -2864,61 +3050,35 @@ function exportPDF() {
 </body>
 </html>`;
 
-  // ── Print via iframe (funciona no Android Chrome sem abrir nova tab) ──
+  // Build filename (used by the iframe's document.title and by the
+  // HTML-download fallback if printing ever fails)
   const codigoStr = (state.header.codigo || state.header.morada || 'vistoria').replace(/[^a-zA-Z0-9À-ú\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
   const dataStr = (state.header.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
   const filename = `Vistoria_${codigoStr}_${dataStr}`;
 
-  const printTitle = 'Vistoria Final de Obra — ' + (state.header.codigo || '') + (state.header.morada ? ' — ' + state.header.morada : '');
-  const printRef   = (state.header.codigo || '') + (state.header.morada ? ' — ' + state.header.morada : '');
+  // Title shown in the print/share sheet and used as the default filename
+  // when the user picks "Save as PDF"
+  const printTitle = 'Vistoria Final de Obra \u2014 ' + (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
+  const printRef = (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
+
+  // No wrapper needed — @page margin boxes handle header/footer
+  const hdrHtml = '';
+  const ftrHtml = '';
 
   const printHtml = html
-    .replace('</head>', `<style>:root{--print-ref:"${printRef.replace(/"/g,"'")}"}<\/style></head>`)
+    .replace('</head>',
+      `<style>:root{--print-ref:"${printRef.replace(/"/g,"'")}"}<\/style></head>`)
     .replace('<div class="no-print"', '<div class="no-print" style="display:none"');
 
-  printViaIframe(printHtml, printTitle, filename);
-}
-
-function printViaIframe(htmlContent, title, filename) {
-  const iframe = document.getElementById('print-frame');
-  if (!iframe) { fallbackDownload(htmlContent, filename); return; }
-
-  // Write content into iframe
-  iframe.style.display = 'block';
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(htmlContent);
-  doc.close();
-
-  // Wait for images to load before printing
-  const imgs = doc.querySelectorAll('img');
-  let pending = imgs.length;
-
-  function doPrint() {
-    try {
-      iframe.contentWindow.document.title = title;
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } catch(e) {
-      fallbackDownload(htmlContent, filename);
-    }
-    setTimeout(function() { iframe.style.display = 'none'; }, 2000);
-  }
-
-  if (pending === 0) {
-    setTimeout(doPrint, 300);
-  } else {
-    let done = 0;
-    const onLoad = function() {
-      done++;
-      if (done >= pending) setTimeout(doPrint, 200);
-    };
-    imgs.forEach(function(img) {
-      if (img.complete) { onLoad(); }
-      else { img.addEventListener('load', onLoad); img.addEventListener('error', onLoad); }
-    });
-    // Safety timeout — print even if some images fail
-    setTimeout(doPrint, 4000);
+  // ── Print from a hidden same-page iframe — no new window/tab is ever
+  // opened, which is what makes this reliable inside an installed Android
+  // Chrome PWA (standalone mode), where a popup can land in a separate
+  // process unable to access blob: URLs, or fail to produce a PDF at all. ──
+  try {
+    await printHtmlDocument(printHtml, printTitle);
+  } catch (e) {
+    console.warn('Impressão via iframe falhou, a tentar alternativa:', e);
+    fallbackDownload(html, filename);
   }
 }
 
@@ -2985,8 +3145,11 @@ document.getElementById('photo-modal').addEventListener('click', function(e) {
   if (e.target === this) closePhoto();
 });
 
-// ── Auto-restore setup screen from saved state on page load ──
+// ── Ao arrancar: 1) processa um eventual retorno do login Google (ver
+// connectDrive), 2) restaura o ecrã inicial a partir do cache local ──
 (function() {
+  var cameFromDriveLogin = consumeDriveRedirectToken();
+
   var saved = loadState();
   if (!saved || !saved.state || !saved.state.header) return;
   var h = saved.state.header;
@@ -3016,6 +3179,16 @@ document.getElementById('photo-modal').addEventListener('click', function(e) {
     var dateStr = d.toLocaleDateString('pt-PT') + ' ' + d.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'});
     ind.textContent = '💾 Sessão guardada automaticamente em ' + dateStr;
     ind.style.display = 'block';
+  }
+
+  // A ligação ao Drive recarrega sempre a página (navegação de topo, sem
+  // popup). Se o utilizador estava a meio da vistoria quando tocou em
+  // "Drive", volta-se automaticamente ao ecrã da vistoria em vez de o
+  // deixar parado no ecrã inicial.
+  var resumeSurvey = _storage().getItem(DRIVE_OAUTH_RESUME_KEY) === '1';
+  _storage().removeItem(DRIVE_OAUTH_RESUME_KEY);
+  if (cameFromDriveLogin && resumeSurvey) {
+    setTimeout(function() { startApp(); }, 0);
   }
 })();
 
