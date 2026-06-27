@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Vistoria Final de Obra</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
@@ -1614,7 +1615,6 @@ let autosaveTimer = null;
 const DRIVE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const DRIVE_OAUTH_STATE_KEY = 'drive_oauth_state_v1';
 const DRIVE_OAUTH_RESUME_KEY = 'drive_oauth_resume_survey_v1';
-const PRINT_RESUME_KEY = 'print_resume_survey_v1';
 
 function driveRedirectUri() {
   return location.origin + location.pathname;
@@ -1816,13 +1816,25 @@ function getSectionNameFromItemId(itemId) {
 
 // Garante (procura antes de criar, tal como ensureProjectFolders) e
 // cacheia em memória a subpasta de uma secção dentro de "Fotografias" —
-// só uma chamada de rede por secção por sessão, não por foto.
+// só uma chamada de rede por secção por sessão, não por foto. Chamadas
+// concorrentes para a MESMA secção (fotos tiradas em sequência rápida)
+// partilham a mesma promessa em vez de cada uma tentar criar a pasta,
+// o que evitaria subpastas duplicadas com o mesmo nome.
+const _sectionFolderInFlight = {};
 async function ensureSectionFolder(sectionName) {
   if (!sectionName) return driveState.photosFolderId;
   if (driveState.sectionFolderIds[sectionName]) return driveState.sectionFolderIds[sectionName];
-  const id = await findOrCreateFolder(sectionName, driveState.photosFolderId);
-  driveState.sectionFolderIds[sectionName] = id;
-  return id;
+  if (_sectionFolderInFlight[sectionName]) return _sectionFolderInFlight[sectionName];
+  const p = findOrCreateFolder(sectionName, driveState.photosFolderId).then(function(id) {
+    driveState.sectionFolderIds[sectionName] = id;
+    delete _sectionFolderInFlight[sectionName];
+    return id;
+  }).catch(function(err) {
+    delete _sectionFolderInFlight[sectionName];
+    throw err;
+  });
+  _sectionFolderInFlight[sectionName] = p;
+  return p;
 }
 
 // Uploads the actual image bytes (.jpg/.png) into the "Fotografias" subfolder.
@@ -2639,55 +2651,154 @@ function clearAllData() {
 }
 
 // ════════════════════════════════════════
-//  AUTO DE RECEÇÃO DE OBRA
+//  GERAÇÃO DE PDF (client-side, via jsPDF)
 // ════════════════════════════════════════
-// Shared print mechanism for every exported document (relatório + auto de
-// receção). Já tentámos duas abordagens antes desta, ambas com falhas
-// conhecidas e confirmadas em Android Chrome:
-//   1) Nova janela/aba (window.open) — em PWA standalone pode abrir noutro
-//      processo sem acesso a blob: URLs, ou "about:blank" sem imprimir nada.
-//   2) <iframe> oculto — o próprio motor de impressão do Chromium tem um
-//      bug confirmado e antigo (chromium issue 819327) em que imprimir o
-//      conteúdo de um iframe a partir do diálogo "Guardar como PDF" produz
-//      um ficheiro vazio (0 bytes) mesmo que o preview pareça correto.
-// A única forma fiável que resta é imprimir o documento de TOPO da própria
-// janela — exatamente como o "Partilhar → Imprimir → Guardar como PDF" do
-// Android funciona em qualquer página normal. Por isso substituímos o
-// próprio documento (document.write) pelo relatório e chamamos
-// window.print() na janela atual: nunca abre nada novo, nunca usa iframe.
-// O botão "Voltar à Vistoria" no relatório recarrega a app a partir do
-// mesmo URL — e a app restaura-se sozinha a partir do cache local (ver a
-// IIFE de arranque, que lê PRINT_RESUME_KEY).
-function printInPlace(htmlContent) {
-  try { saveState(); } catch (e) { /* garante que nada se perde */ }
-  try { _storage().setItem(PRINT_RESUME_KEY, '1'); } catch (e) {}
+// Já tentámos três caminhos diferentes para produzir o PDF a partir do
+// diálogo de impressão do sistema — nova janela, <iframe> oculto, e
+// substituir o próprio documento (document.write) — e os três têm falhas
+// específicas e bem documentadas dentro de uma PWA instalada em modo
+// standalone no Android: popup que abre noutro processo sem acesso a
+// blob: URLs, um bug confirmado e antigo do próprio Chromium que produz
+// PDF vazio (0 bytes) ao imprimir o conteúdo de um <iframe>, e o wrapper
+// standalone a tratar a substituição do documento como uma navegação
+// inválida e a voltar atrás. Os três dependem de pedir ao SISTEMA
+// operativo para gerar o PDF — e é exatamente esse passo que falha.
+// A solução definitiva é gerar o PDF byte a byte aqui, em JavaScript
+// (jsPDF), e descarregá-lo como um ficheiro normal — o mesmo mecanismo
+// simples de download (Blob + link) que já é usado em qualquer parte da
+// app sem qualquer problema reportado.
 
-  document.open();
-  document.write(htmlContent);
-  document.close();
+const PDF_GREEN = [64, 96, 83];
+const PDF_GREY  = [107, 122, 141];
 
-  function triggerPrint() {
-    try { window.print(); }
-    catch (e) {
-      console.warn('window.print() falhou:', e);
-      showToast('Não foi possível abrir a impressão — usa o botão "Imprimir" no documento.');
-    }
+function pdfRequireLib() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('A biblioteca de geração de PDF não carregou — verifica a ligação à internet e tenta novamente.');
+    return null;
   }
-  function waitForImagesThenPrint() {
-    const imgs = Array.prototype.slice.call(document.images);
-    const pending = imgs.filter(function(i) { return !i.complete; });
-    if (!pending.length) { triggerPrint(); return; }
-    let done = 0;
-    function check() { done++; if (done >= pending.length) triggerPrint(); }
-    pending.forEach(function(i) {
-      i.addEventListener('load', check);
-      i.addEventListener('error', check);
+  return window.jspdf.jsPDF;
+}
+
+// Converte qualquer formato de imagem (jpeg/png/webp) para um JPEG
+// normalizado e devolve também a proporção largura/altura — necessária
+// para desenhar cada fotografia no PDF sem a distorcer.
+function normalizeImageForPdf(dataUrl, maxDim) {
+  return new Promise(function(resolve) {
+    if (!dataUrl) { resolve(null); return; }
+    const img = new Image();
+    img.onload = function() {
+      try {
+        const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+        if (!nw || !nh) { resolve(null); return; }
+        const scale = Math.min(1, maxDim / Math.max(nw, nh));
+        const w = Math.max(1, Math.round(nw * scale)), h = Math.max(1, Math.round(nh * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const c2d = canvas.getContext('2d');
+        c2d.fillStyle = '#fff'; c2d.fillRect(0, 0, w, h);
+        c2d.drawImage(img, 0, 0, w, h);
+        resolve({ src: canvas.toDataURL('image/jpeg', 0.82), ratio: nw / nh });
+      } catch (e) { resolve(null); }
+    };
+    img.onerror = function() { resolve(null); };
+    img.src = dataUrl;
+  });
+}
+
+// Distribui fotografias em "linhas" da largura disponível, todas com a
+// mesma altura-alvo (tal como o flex-wrap usado no ecrã), devolvendo a
+// altura total do bloco para que o chamador possa decidir se cabe na
+// página atual ANTES de desenhar nada.
+function layoutPhotoRows(photos, availW, targetH, maxW, gap) {
+  const rows = [];
+  let row = [], rowW = 0;
+  photos.forEach(function(p) {
+    const w = Math.min(maxW, targetH * (p.ratio || 1.33));
+    if (row.length && rowW + gap + w > availW) { rows.push(row); row = []; rowW = 0; }
+    if (row.length) rowW += gap;
+    row.push({ src: p.src, w: w });
+    rowW += w;
+  });
+  if (row.length) rows.push(row);
+  return { rows: rows, totalH: rows.length ? rows.length * targetH + (rows.length - 1) * gap : 0, rowH: targetH, gap: gap };
+}
+
+function drawPhotoRows(doc, layout, x, y) {
+  let curY = y;
+  layout.rows.forEach(function(row) {
+    let curX = x;
+    row.forEach(function(ph) {
+      try { doc.addImage(ph.src, 'JPEG', curX, curY, ph.w, layout.rowH); } catch (e) { /* ignora foto corrompida, não interrompe o resto do PDF */ }
+      curX += ph.w + layout.gap;
     });
-    setTimeout(triggerPrint, 4000); // hard fallback if an image never settles
-  }
-  // Pequeno delay para garantir que o novo documento já está totalmente
-  // substituído antes de inspecionar as imagens.
-  setTimeout(waitForImagesThenPrint, 50);
+    curY += layout.rowH + layout.gap;
+  });
+}
+
+// Cria o documento A4 e o "contexto" de desenho com cabeçalho/rodapé
+// reutilizáveis (título, referência do imóvel, contador de página).
+function pdfNewContext(title, ref) {
+  const jsPDF = pdfRequireLib();
+  if (!jsPDF) return null;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const ctx = {
+    doc: doc,
+    pageW: doc.internal.pageSize.getWidth(),
+    pageH: doc.internal.pageSize.getHeight(),
+    marginL: 14, marginR: 14, marginTop: 17, marginBottom: 14,
+    title: title, ref: ref || '',
+    page: 1,
+    totalExp: '{total_pages_count_string}',
+  };
+  ctx.contentW = ctx.pageW - ctx.marginL - ctx.marginR;
+  ctx.y = ctx.marginTop;
+  pdfDrawChrome(ctx);
+  return ctx;
+}
+
+function pdfDrawChrome(ctx) {
+  const doc = ctx.doc;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.setTextColor(PDF_GREEN[0], PDF_GREEN[1], PDF_GREEN[2]);
+  doc.text(ctx.title, ctx.marginL, 10);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.setTextColor(PDF_GREY[0], PDF_GREY[1], PDF_GREY[2]);
+  doc.text(ctx.ref, ctx.pageW - ctx.marginR, 10, { align: 'right' });
+  doc.setDrawColor(225, 228, 232);
+  doc.line(ctx.marginL, 12.5, ctx.pageW - ctx.marginR, 12.5);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.setTextColor(PDF_GREY[0], PDF_GREY[1], PDF_GREY[2]);
+  doc.text(ctx.ref, ctx.marginL, ctx.pageH - 8);
+  doc.text('Página ' + ctx.page + ' / ' + ctx.totalExp, ctx.pageW - ctx.marginR, ctx.pageH - 8, { align: 'right' });
+}
+
+function pdfNewPage(ctx) {
+  ctx.doc.addPage();
+  ctx.page++;
+  ctx.y = ctx.marginTop;
+  pdfDrawChrome(ctx);
+}
+
+// Garante espaço para o próximo bloco — se não couber, muda de página
+// ANTES de desenhar seja o que for. É isto que mantém um ponto e a sua
+// fotografia sempre juntos na mesma página: o bloco completo (pergunta +
+// observação + fotos) só é desenhado depois de confirmado que cabe.
+function pdfEnsureSpace(ctx, neededH) {
+  if (ctx.y + neededH > ctx.pageH - ctx.marginBottom) pdfNewPage(ctx);
+}
+
+function pdfFinish(ctx, filename) {
+  if (typeof ctx.doc.putTotalPages === 'function') ctx.doc.putTotalPages(ctx.totalExp);
+  ctx.doc.save(filename);
+}
+
+// Altura real de uma linha de texto, em mm, ao tamanho de fonte
+// atualmente definido — usar isto (em vez de um valor fixo "adivinhado")
+// é o que garante que a altura medida de um bloco corresponde exatamente
+// ao que o jsPDF desenha, sem sobreposições nem espaços a mais.
+function pdfLineHeight(doc) {
+  return doc.getLineHeight() / doc.internal.scaleFactor;
 }
 
 // Live validation: strips non-digits, then flags anything other than
@@ -2746,83 +2857,64 @@ async function exportAutoReceção() {
   const visitoriaDate = h.data ? fmtDateLong(h.data) : fmtDateLong(new Date().toISOString().split('T')[0]);
   const autoDate = fmtDateLong(dataAuto || new Date().toISOString().split('T')[0]);
 
-  const html = `<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=794, initial-scale=1.0">
-<title>Auto de Receção de Obra — ${h.codigo || 'LV000'}</title>
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; font-synthesis:none; }
-  body { font-family:Verdana,Geneva,sans-serif; font-size:12px; color:#1a2332; background:white; padding:40px 50px; width:794px; max-width:794px; line-height:1.7; }
-  @media print { body { padding:20px 30px; width:auto; max-width:none; } .no-print { display:none !important; } }
-  h1 { font-size:16px; font-weight:700; text-align:center; margin-bottom:24px; text-transform:uppercase; letter-spacing:0.05em; }
-  .section-title { font-size:11px; font-weight:700; color:#406053; text-transform:uppercase; letter-spacing:0.08em; margin:20px 0 8px; border-bottom:2px solid #406053; padding-bottom:4px; }
-  p { margin-bottom:10px; text-align:justify; }
-  .sig-block { margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; }
-  .sig-line { border-top:1px solid #1a2332; padding-top:6px; font-size:11px; color:#6b7a8d; margin-top:40px; }
-  .ref { font-size:10px; color:#9aa3b0; text-align:right; margin-top:30px; }
-  .footer { position:fixed; bottom:20px; left:50px; right:50px; display:flex; justify-content:flex-start; font-size:10px; color:#9aa3b0; }
-  @media print { .footer { position:fixed; bottom:10px; left:30px; right:30px; } }
-  .header-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:30px; padding-bottom:16px; border-bottom:3px solid #406053; }
-  .header-bar .title-block .doc-title { font-size:18px; font-weight:700; color:#406053; letter-spacing:0.03em; }
-  .header-bar .title-block .doc-sub { font-size:10px; color:#9aa3b0; letter-spacing:0.06em; margin-top:2px; }
-  .header-bar .meta { text-align:right; font-size:11px; color:#6b7a8d; }
-</style>
-</head>
-<body>
-
-<div class="header-bar">
-  <div class="title-block">
-    <div class="doc-title">AUTO DE RECEÇÃO DE OBRA</div>
-    <div class="doc-sub">${h.codigo || 'LV000'} · ${h.morada || ''}</div>
-  </div>
-  <div class="meta">${fmtDate(dataAuto)}</div>
-</div>
-
-<div class="section-title">Identificação das Partes e Objeto</div>
-
-<p><strong>Dono da Obra:</strong> GILMAR BASSANGUE &amp; EDUARDO MONTEIRO LDA, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva 518.031.373.</p>
-
-<p><strong>Empreiteiro:</strong> ${h.empreiteiro || '________________________________'}, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva ${nipc}.</p>
-
-<p><strong>Empreitada</strong> de Remodelação/Melhoramento do imóvel sito na <strong>${h.morada || '________________________________'}</strong>, adjudicada ao Empreiteiro acima identificado, por contrato datado de ${fmtDate(adjDate)}.</p>
-
-<div class="section-title">Auto de Receção de Obra</div>
-
-<p>A ${autoDate}, os abaixo assinados <strong>${h.tecnico || '_____________________________'}</strong> (representante do Dono de Obra) e <strong>${h.rep || '_____________________________'}</strong> (representante do Empreiteiro), compareceram na ${h.morada || 'Rua ________________________________'}, concelho de <strong>${concelho}</strong>, onde se procedeu, à realização da mencionada empreitada, a fim de se promover a VISTORIA de natureza técnica da obra, que teve o seu início em ${fmtDate(inicioDate)}, com vista à sua RECEÇÃO.</p>
-
-<p>Tendo sido examinada toda a obra e verificados todos os trabalhos realizados pelo Empreiteiro, com base no projeto e demais elementos técnicos, verificou-se que os mesmos se encontram executados em conformidade e sem anomalias, podendo, por isso, efetuar-se a RECEÇÃO DA OBRA mencionada em epígrafe.</p>
-
-<p>Face ao exposto, iniciam-se, na presente data, os períodos de Garantia estipulados no Contrato de Empreitada acima identificado e na legislação aplicável.</p>
-
-<p>Faz parte integrante do presente auto a CheckList Vistoria Final de Obra.</p>
-
-<p>Para os devidos e legais efeitos lavra-se o presente auto que vai assinado por ambas as Partes.</p>
-
-<div class="sig-block">
-  <div>
-    <div class="sig-line">Assinatura do representante do Dono de Obra</div>
-  </div>
-  <div>
-    <div class="sig-line">Assinatura do representante do Empreiteiro</div>
-  </div>
-</div>
-
-<div class="footer">
-  <span>${h.codigo || 'LV000'}</span>
-</div>
-
-<div class="no-print" style="margin-top:30px;text-align:center;display:flex;gap:10px;justify-content:center">
-  <button onclick="window.print()" style="padding:12px 28px;background:#406053;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🖨️ Imprimir / Guardar PDF</button>
-  <button onclick="location.reload()" style="padding:12px 28px;background:white;color:#406053;border:2px solid #406053;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">↩️ Voltar à Vistoria</button>
-</div>
-
-</body></html>`;
+  const ctx = pdfNewContext('AUTO DE RECEÇÃO DE OBRA', (h.codigo || 'LV000') + (h.morada ? ' \u2014 ' + h.morada : ''));
+  if (!ctx) return;
+  const doc = ctx.doc;
 
   document.getElementById('auto-recep-modal').style.display = 'none';
-  showToast('A preparar documento para impressão…');
-  printInPlace(html);
+  showToast('A gerar PDF…');
+
+  function heading(text) {
+    pdfEnsureSpace(ctx, 10);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+    doc.setTextColor(PDF_GREEN[0], PDF_GREEN[1], PDF_GREEN[2]);
+    doc.text(text, ctx.marginL, ctx.y + 4);
+    doc.setDrawColor(PDF_GREEN[0], PDF_GREEN[1], PDF_GREEN[2]);
+    doc.line(ctx.marginL, ctx.y + 6.5, ctx.pageW - ctx.marginR, ctx.y + 6.5);
+    ctx.y += 11;
+  }
+  function paragraph(text) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+    doc.setTextColor(26, 35, 50);
+    const lines = doc.splitTextToSize(text, ctx.contentW);
+    const lineH = 5.6;
+    pdfEnsureSpace(ctx, lines.length * lineH + 4);
+    doc.text(lines, ctx.marginL, ctx.y + 4);
+    ctx.y += lines.length * lineH + 5;
+  }
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  doc.setTextColor(PDF_GREY[0], PDF_GREY[1], PDF_GREY[2]);
+  doc.text(fmtDate(dataAuto), ctx.pageW - ctx.marginR, ctx.y + 4, { align: 'right' });
+  ctx.y += 10;
+
+  heading('Identificação das Partes e Objeto');
+  paragraph(`Dono da Obra: GILMAR BASSANGUE & EDUARDO MONTEIRO LDA, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva 518.031.373.`);
+  paragraph(`Empreiteiro: ${h.empreiteiro || '________________________________'}, com o número único de matrícula na Conservatória do Registo Comercial e de identificação pessoa coletiva ${nipc}.`);
+  paragraph(`Empreitada de Remodelação/Melhoramento do imóvel sito na ${h.morada || '________________________________'}, adjudicada ao Empreiteiro acima identificado, por contrato datado de ${fmtDate(adjDate)}.`);
+
+  heading('Auto de Receção de Obra');
+  paragraph(`A ${autoDate}, os abaixo assinados ${h.tecnico || '_____________________________'} (representante do Dono de Obra) e ${h.rep || '_____________________________'} (representante do Empreiteiro), compareceram na ${h.morada || 'Rua ________________________________'}, concelho de ${concelho}, onde se procedeu, à realização da mencionada empreitada, a fim de se promover a VISTORIA de natureza técnica da obra, que teve o seu início em ${fmtDate(inicioDate)}, com vista à sua RECEÇÃO.`);
+  paragraph(`Tendo sido examinada toda a obra e verificados todos os trabalhos realizados pelo Empreiteiro, com base no projeto e demais elementos técnicos, verificou-se que os mesmos se encontram executados em conformidade e sem anomalias, podendo, por isso, efetuar-se a RECEÇÃO DA OBRA mencionada em epígrafe.`);
+  paragraph(`Face ao exposto, iniciam-se, na presente data, os períodos de Garantia estipulados no Contrato de Empreitada acima identificado e na legislação aplicável.`);
+  paragraph(`Faz parte integrante do presente auto a CheckList Vistoria Final de Obra.`);
+  paragraph(`Para os devidos e legais efeitos lavra-se o presente auto que vai assinado por ambas as Partes.`);
+
+  // Bloco de assinaturas
+  pdfEnsureSpace(ctx, 35);
+  ctx.y += 20;
+  const colW = (ctx.contentW - 20) / 2;
+  doc.setDrawColor(26, 35, 50);
+  doc.line(ctx.marginL, ctx.y, ctx.marginL + colW, ctx.y);
+  doc.line(ctx.marginL + colW + 20, ctx.y, ctx.marginL + colW + 20 + colW, ctx.y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.setTextColor(PDF_GREY[0], PDF_GREY[1], PDF_GREY[2]);
+  doc.text('Assinatura do representante do Dono de Obra', ctx.marginL, ctx.y + 5);
+  doc.text('Assinatura do representante do Empreiteiro', ctx.marginL + colW + 20, ctx.y + 5);
+
+  const codigoStr = (h.codigo || h.morada || 'auto_rececao').replace(/[^a-zA-Z0-9À-ú\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
+  pdfFinish(ctx, `Auto_Rececao_${codigoStr}.pdf`);
+  showToast('PDF gerado e descarregado.');
 }
 
 // ════════════════════════════════════════
@@ -2839,26 +2931,26 @@ async function exportPDF() {
   state.header.tecnico   = document.getElementById('f-tecnico')?.value || state.header.tecnico;
 
   const formatDate = (d) => {
-    if (!d) return '—';
+    if (!d) return '\u2014';
     const [y,m,day] = d.split('-');
     return `${day}/${m}/${y}`;
   };
 
-  const optLabel = { sim: 'Sim', nao: 'Não', parcial: 'Parcial', na: 'N/A' };
-  const optColor = { sim: '#2a7a4b', nao: '#c0392b', parcial: '#d97706', na: '#6b7a8d' };
-  const optBg    = { sim: '#e8f5ee', nao: '#fdecea', parcial: '#fef3e0', na: '#f0f2f5' };
+  const optLabel    = { sim: 'Sim', nao: 'N\u00e3o', parcial: 'Parcial', na: 'N/A' };
+  const optColorRGB = { sim: [42,122,75], nao: [192,57,43], parcial: [217,119,6], na: [107,122,141] };
+  const optBgRGB    = { sim: [232,245,238], nao: [253,236,234], parcial: [254,243,224], na: [240,242,245] };
 
   let totalItems = 0, totalAnswered = 0;
-  let counts_ans = { sim: 0, nao: 0, parcial: 0, na: 0 };
+  const counts_ans = { sim: 0, nao: 0, parcial: 0, na: 0 };
   for (const [id, val] of Object.entries(state.answers)) {
     totalItems++;
     if (val) { totalAnswered++; counts_ans[val]++; }
   }
+  const pct = totalItems > 0 ? Math.round((totalAnswered / totalItems) * 100) : 0;
 
-  // Resolve every referenced photo (Drive ref, or one still finishing its
-  // upload) to a self-contained base64 data URI BEFORE building any HTML —
-  // this is what lets the printed document wait for asynchronously
-  // imported images instead of racing the print dialog against them.
+  // Resolve cada fotografia referenciada (já no Drive, ou ainda a meio do
+  // upload) para um JPEG normalizado + proporção — feito ANTES de
+  // desenhar seja o que for, para nunca desenhar uma imagem incompleta.
   const allPhotoEntries = [];
   for (const arr of Object.values(state.photos)) {
     for (const entry of (arr || [])) if (entry && (entry.driveId || entry.tempKey)) allPhotoEntries.push(entry);
@@ -2867,11 +2959,72 @@ async function exportPDF() {
   await Promise.all(allPhotoEntries.map(async (entry) => {
     try {
       const dataUrl = await resolvePhotoDataUrl(entry);
-      if (dataUrl) photoDataMap[entry.driveId || entry.tempKey] = dataUrl;
-    } catch (e) { console.warn('Foto não pôde ser incluída no PDF:', e); }
+      if (dataUrl) {
+        const norm = await normalizeImageForPdf(dataUrl, 1100);
+        if (norm) photoDataMap[entry.driveId || entry.tempKey] = norm;
+      }
+    } catch (e) { console.warn('Foto n\u00e3o p\u00f4de ser inclu\u00edda no PDF:', e); }
   }));
 
-  let sectionsHTML = '';
+  const printRef = (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
+  const ctx = pdfNewContext('VISTORIA FINAL DE OBRA', printRef);
+  if (!ctx) return;
+  const doc = ctx.doc;
+  const LH = pdfLineHeight(doc);
+
+  // ── Cabe\u00e7alho "hero" (faixa verde + faixa de dados) — s\u00f3 na p\u00e1gina 1 ──
+  doc.setFillColor(64,96,83);
+  doc.rect(ctx.marginL, ctx.y, ctx.contentW, 20, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(255,255,255);
+  doc.text('VISTORIA FINAL DE OBRA', ctx.marginL + 5, ctx.y + 9);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
+  doc.text('CHECKLIST DE VERIFICA\u00c7\u00c3O \u00b7 ' + (state.header.codigo || '\u2014'), ctx.marginL + 5, ctx.y + 14.5);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(formatDate(state.header.data), ctx.marginL + ctx.contentW - 4, ctx.y + 9, { align: 'right' });
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  doc.text(state.header.tecnico || '\u2014', ctx.marginL + ctx.contentW - 4, ctx.y + 14.5, { align: 'right' });
+  ctx.y += 20;
+
+  doc.setFillColor(245,247,251);
+  doc.rect(ctx.marginL, ctx.y, ctx.contentW, 16, 'F');
+  doc.setFillColor(200,151,58);
+  doc.rect(ctx.marginL, ctx.y, ctx.contentW, 0.8, 'F');
+  const colW3 = ctx.contentW / 3;
+  function infoCol(x, label, value) {
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(107,122,141);
+    doc.text(label.toUpperCase(), x + 3, ctx.y + 5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(26,35,50);
+    const vLines = doc.splitTextToSize(value, colW3 - 6).slice(0, 2);
+    doc.text(vLines, x + 3, ctx.y + 10);
+  }
+  infoCol(ctx.marginL, 'C\u00f3digo / Morada', (state.header.codigo || '\u2014') + ' \u00b7 ' + (state.header.morada || '\u2014'));
+  infoCol(ctx.marginL + colW3, 'Empreiteiro', state.header.empreiteiro || '\u2014');
+  infoCol(ctx.marginL + colW3*2, 'Representante Legal', state.header.rep || '\u2014');
+  ctx.y += 16 + 7;
+
+  // Resumo: 5 caixas (completo / sim / n\u00e3o / parcial / n.a.)
+  const boxGap = 3;
+  const boxW = (ctx.contentW - boxGap*4) / 5;
+  const boxH = 16;
+  const boxes = [
+    { label:'Completo', value: pct + '%', color:[64,96,83],   bg:[245,244,240] },
+    { label:'Sim',      value: String(counts_ans.sim),     color:[42,122,75],  bg:[232,245,238] },
+    { label:'N\u00e3o',      value: String(counts_ans.nao),     color:[192,57,43],  bg:[253,236,234] },
+    { label:'Parcial',  value: String(counts_ans.parcial), color:[217,119,6],  bg:[254,243,224] },
+    { label:'N/A',      value: String(counts_ans.na),      color:[107,122,141],bg:[240,242,245] },
+  ];
+  boxes.forEach((b, idx) => {
+    const bx = ctx.marginL + idx * (boxW + boxGap);
+    doc.setFillColor(b.bg[0], b.bg[1], b.bg[2]);
+    doc.roundedRect(bx, ctx.y, boxW, boxH, 1.5, 1.5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(b.color[0], b.color[1], b.color[2]);
+    doc.text(b.value, bx + boxW/2, ctx.y + 8.5, { align:'center' });
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+    doc.text(b.label.toUpperCase(), bx + boxW/2, ctx.y + 13, { align:'center' });
+  });
+  ctx.y += boxH + 6;
+
+  // ── Sec\u00e7\u00f5es — cada uma comp\u00e7a numa p\u00e1gina nova, tal como o relat\u00f3rio original ──
   for (const sec of state.sections) {
     let secTotal = 0, secAnswered = 0;
     for (const grp of sec.items) {
@@ -2882,186 +3035,123 @@ async function exportPDF() {
     }
     const secDone = secTotal === secAnswered;
 
-    let groupsHTML = '';
+    pdfNewPage(ctx);
+
+    doc.setFillColor(64,96,83);
+    doc.rect(ctx.marginL, ctx.y, ctx.contentW, 9, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+    doc.text(sec.name, ctx.marginL + 3, ctx.y + 6);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+    doc.text(secDone ? 'COMPLETO' : `${secAnswered}/${secTotal}`, ctx.marginL + ctx.contentW - 3, ctx.y + 6, { align:'right' });
+    ctx.y += 9 + 5;
+
     for (const grp of sec.items) {
-      let itemsHTML = '';
+      pdfEnsureSpace(ctx, 8);
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(107,122,141);
+      doc.text(grp.group.toUpperCase(), ctx.marginL, ctx.y + 3);
+      doc.setDrawColor(225,228,232); doc.setLineWidth(0.2);
+      doc.line(ctx.marginL, ctx.y + 4.5, ctx.marginL + ctx.contentW, ctx.y + 4.5);
+      ctx.y += 7;
+
       for (let i = 0; i < grp.items.length; i++) {
         const id = `${grp.id}_${i}`;
         const val = state.answers[id];
         const obs = state.obs[id];
-        const photos = state.photos[id] || [];
+        const photoEntries = state.photos[id] || [];
+        const photoList = photoEntries.map(p => photoDataMap[p.driveId || p.tempKey]).filter(Boolean);
 
-        const badge = val
-          ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${optBg[val]};color:${optColor[val]}">${optLabel[val]}</span>`
-          : `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#f0f2f5;color:#9aa5b4">Por verificar</span>`;
+        // Mede a altura TOTAL do bloco (pergunta + observa\u00e7\u00e3o + fotos)
+        // antes de desenhar qualquer coisa — \u00e9 isto que garante que o
+        // ponto e a respetiva fotografia ficam sempre na mesma p\u00e1gina:
+        // s\u00f3 come\u00e7amos a desenhar depois de confirmar que cabe tudo.
+        const badgeW = 24, badgeGap = 3;
+        const questionW = ctx.contentW - badgeW - badgeGap;
+        doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+        const qLines = doc.splitTextToSize(grp.items[i], questionW);
+        const qH = qLines.length * LH;
+        let blockH = Math.max(qH, 5.2) + 3;
 
-        const obsBlock = obs ? `<div style="margin-top:4px;font-size:11px;color:#555;background:#f8f9fb;border-left:3px solid #dde2ea;padding:4px 8px;border-radius:0 4px 4px 0">${obs}</div>` : '';
-
-        let photosBlock = '';
-        if (photos.length) {
-          const imgs = photos.map(p => photoDataMap[p.driveId || p.tempKey]).filter(Boolean);
-          if (imgs.length) {
-            photosBlock = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">`;
-            imgs.forEach(src => {
-              // Render at natural aspect ratio, capped at 300px on shorter side
-              photosBlock += `<img src="${src}" style="max-width:300px;max-height:300px;width:auto;height:auto;object-fit:contain;border-radius:6px;border:1px solid #dde2ea;display:block">`;
-            });
-            photosBlock += `</div>`;
-          }
+        let obsLines = [], obsH = 0;
+        if (obs) {
+          doc.setFontSize(8.5);
+          obsLines = doc.splitTextToSize(obs, ctx.contentW - 8);
+          obsH = obsLines.length * pdfLineHeight(doc) + 3;
+          blockH += obsH + 3;
         }
 
-        // break-inside:avoid (e o equivalente legacy page-break-inside)
-        // mantém o ponto e a respetiva fotografia sempre juntos na mesma
-        // página — usa <div> em vez de <tr>/<table> porque o suporte a
-        // "evitar quebra" em linhas de tabela é historicamente inconsistente
-        // entre motores de impressão (incluindo Android Chrome), enquanto
-        // em blocos div é respeitado de forma fiável.
-        itemsHTML += `
-          <div style="display:flex;gap:10px;padding:7px 10px;border-bottom:1px solid #edf0f4;break-inside:avoid;page-break-inside:avoid">
-            <div style="flex:1;min-width:0;font-size:12px;color:#406053;font-family:Helvetica,Arial,sans-serif;font-variant-ligatures:none">
-              ${grp.items[i]}
-              ${obsBlock}
-              ${photosBlock}
-            </div>
-            <div style="flex-shrink:0;width:80px;text-align:right;font-family:Helvetica,Arial,sans-serif">${badge}</div>
-          </div>`;
+        let photoLayout = null;
+        if (photoList.length) {
+          photoLayout = layoutPhotoRows(photoList, ctx.contentW, 34, 44, 3);
+          blockH += photoLayout.totalH + 3;
+        }
+        blockH += 4; // separador inferior
+
+        pdfEnsureSpace(ctx, blockH);
+
+        // Pergunta
+        doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(64,96,83);
+        doc.text(qLines, ctx.marginL, ctx.y + LH * 0.78);
+
+        // Badge de resposta
+        const badge = val
+          ? { label: optLabel[val], color: optColorRGB[val], bg: optBgRGB[val] }
+          : { label: 'Por verificar', color: [154,165,180], bg: [240,242,245] };
+        doc.setFillColor(badge.bg[0], badge.bg[1], badge.bg[2]);
+        doc.roundedRect(ctx.marginL + ctx.contentW - badgeW, ctx.y, badgeW, 5.2, 1, 1, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(badge.color[0], badge.color[1], badge.color[2]);
+        doc.text(badge.label, ctx.marginL + ctx.contentW - badgeW/2, ctx.y + 3.6, { align:'center' });
+
+        ctx.y += Math.max(qH, 5.2) + 3;
+
+        if (obs) {
+          doc.setFillColor(248,249,251);
+          doc.rect(ctx.marginL + 0.8, ctx.y, ctx.contentW - 0.8, obsH - 3, 'F');
+          doc.setFillColor(221,226,234);
+          doc.rect(ctx.marginL, ctx.y, 0.8, obsH - 3, 'F');
+          doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(85,85,85);
+          doc.text(obsLines, ctx.marginL + 3, ctx.y + pdfLineHeight(doc) * 0.78);
+          ctx.y += obsH;
+        }
+
+        if (photoLayout) {
+          drawPhotoRows(doc, photoLayout, ctx.marginL, ctx.y);
+          ctx.y += photoLayout.totalH + 3;
+        }
+
+        doc.setDrawColor(237,240,244); doc.setLineWidth(0.2);
+        doc.line(ctx.marginL, ctx.y, ctx.marginL + ctx.contentW, ctx.y);
+        ctx.y += 4;
       }
-
-      groupsHTML += `
-        <div style="margin-bottom:12px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7a8d;padding:5px 0 3px;border-bottom:1px solid #edf0f4;margin-bottom:4px">${grp.group}</div>
-          <div style="width:100%">${itemsHTML}</div>
-        </div>`;
+      ctx.y += 2;
     }
-
-    const doneTag = secDone
-      ? `<span style="background:#e8f5ee;color:#2a7a4b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-left:8px">✓ COMPLETO</span>`
-      : `<span style="background:#f0f2f5;color:#6b7a8d;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-left:8px">${secAnswered}/${secTotal}</span>`;
-
-    sectionsHTML += `
-      <div style="margin-bottom:20px;page-break-before:always;page-break-inside:auto">
-        <div style="background:#406053;color:white;padding:9px 14px;border-radius:7px 7px 0 0;display:flex;align-items:center;justify-content:space-between;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-          <span style="font-size:13px;font-weight:700">${sec.icon} ${sec.name}</span>
-          ${doneTag}
-        </div>
-        <div style="background:white;border:1px solid #dde2ea;border-top:none;border-radius:0 0 7px 7px;padding:12px 14px;-webkit-print-color-adjust:exact;print-color-adjust:exact;outline:1px solid #dde2ea;outline-offset:-1px">
-          ${groupsHTML}
-        </div>
-      </div>`;
   }
 
-  const pct = totalItems > 0 ? Math.round((totalAnswered / totalItems) * 100) : 0;
-
-  const html = `<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=794, initial-scale=1.0, shrink-to-fit=no">
-<title>Vistoria Final de Obra</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-synthesis: none; font-variant-ligatures: none; }
-  body { font-family: Verdana, Geneva, sans-serif; font-size: 11px; color: #1a2332; background: white; padding: 20px; width: 794px; max-width: 794px; }
-  @media print {
-    body { padding: 0; width: auto; max-width: none; }
-    .no-print { display: none !important; }
-    html, body, * { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-synthesis: none; }
+  // ── Assinaturas (p\u00e1gina pr\u00f3pria, encostadas ao fundo) ──
+  pdfNewPage(ctx);
+  ctx.y = ctx.pageH - ctx.marginBottom - 30;
+  const sigGap = 14;
+  const sigColW = (ctx.contentW - sigGap) / 2;
+  function sigBlock(x, label, name) {
+    doc.setDrawColor(64,96,83); doc.setLineWidth(0.6);
+    doc.line(x, ctx.y, x + sigColW, ctx.y);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(107,122,141);
+    doc.text(label.toUpperCase(), x, ctx.y + 4.5);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(26,35,50);
+    doc.text(name, x, ctx.y + 9.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(107,122,141);
+    doc.text('Data: ' + formatDate(state.header.data), x, ctx.y + 13.5);
+    doc.setDrawColor(210,210,210); doc.setLineWidth(0.3);
+    doc.line(x, ctx.y + 22, x + sigColW, ctx.y + 22);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(170,170,170);
+    doc.text('Assinatura', x, ctx.y + 25.5);
   }
-  @page {
-    size: A4;
-    margin: 14mm 12mm 12mm 12mm;
-    @top-left { content: "Vistoria Final de Obra"; font-family: Verdana, Geneva, sans-serif; font-size: 9px; font-weight: 600; color: #444; }
-    @top-right { content: var(--print-ref); font-family: Verdana, Geneva, sans-serif; font-size: 9px; color: #555; }
-    @bottom-left { content: var(--print-ref); font-family: Verdana, Geneva, sans-serif; font-size: 9px; color: #888; }
-    @bottom-right { content: counter(page) " / " counter(pages); font-family: Verdana, Geneva, sans-serif; font-size: 9px; color: #888; }
-  }
-</style>
-</head>
-<body>
-  <!-- Header -->
-  <div style="border:2px solid #406053;border-radius:8px;overflow:hidden;margin-bottom:20px">
-    <div style="background:#406053;color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:14px">
-        <div style="display:flex;align-items:center;justify-content:center;flex-shrink:0"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEA3ADcAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCACZAgQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDwyiiioPlwooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooB3Zxk/SlwfQ/lQOzEooyM47+lFAgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKA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MQRsPQ7Rux7Zwaq53/W6e/Lqe6ftz/tJWXjB/wDhX3hm6S60y1nEmqXkRDJNKh+WJT3CsMk/3gPQ5+PaAAoAAwB6dKKR59So6suZhRRRSMgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z" style="height:30px;width:auto;display:block"></div>
-        <div>
-          <div style="font-size:16px;font-weight:700;font-family:Verdana, Geneva, sans-serif;letter-spacing:0.04em">VISTORIA FINAL DE OBRA</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.65);margin-top:2px;font-family:Verdana, Geneva, sans-serif;letter-spacing:0.06em;font-weight:400">CHECKLIST DE VERIFICAÇÃO · ${state.header.codigo || '—'}</div>
-        </div>
-      </div>
-      <div style="text-align:right;flex-shrink:0;font-family:Verdana, Geneva, sans-serif">
-        <div style="font-size:11px;color:rgba(255,255,255,0.75);font-weight:600">${formatDate(state.header.data)}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.65);font-weight:400">${state.header.tecnico || '—'}</div>
-      </div>
-    </div>
-    <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px;background:#f5f7fb;border-top:3px solid #c8973a;font-family:Verdana, Geneva, sans-serif">
-      <div style="word-break:break-word;overflow-wrap:break-word"><span style="font-weight:700;color:#6b7a8d;font-size:10px;text-transform:uppercase;letter-spacing:0.06em">Código / Morada</span><br><strong>${state.header.codigo || '—'}</strong> · ${state.header.morada || '—'}</div>
-      <div style="word-break:break-word;overflow-wrap:break-word"><span style="font-weight:700;color:#6b7a8d;font-size:10px;text-transform:uppercase;letter-spacing:0.06em">Empreiteiro</span><br>${state.header.empreiteiro || '—'}</div>
-      <div style="word-break:break-word;overflow-wrap:break-word"><span style="font-weight:700;color:#6b7a8d;font-size:10px;text-transform:uppercase;letter-spacing:0.06em">Representante Legal</span><br>${state.header.rep || '—'}</div>
-    </div>
-  </div>
+  sigBlock(ctx.marginL, 'Representante da Obra', state.header.tecnico || 'Pedro Gon\u00e7alves');
+  sigBlock(ctx.marginL + sigColW + sigGap, 'Representante Legal (Empreiteiro)', state.header.rep || '\u2014');
 
-  <!-- Summary -->
-  <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px;font-family:Verdana, Geneva, sans-serif">
-    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f5f4f0;border-radius:7px;padding:10px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#406053">${pct}%</div>
-      <div style="font-size:10px;color:#6b7a8d;font-weight:600;text-transform:uppercase">Completo</div>
-    </div>
-    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#e8f5ee;border-radius:7px;padding:10px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#2a7a4b">${counts_ans.sim}</div>
-      <div style="font-size:10px;color:#2a7a4b;font-weight:600;text-transform:uppercase">Sim</div>
-    </div>
-    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fdecea;border-radius:7px;padding:10px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#c0392b">${counts_ans.nao}</div>
-      <div style="font-size:10px;color:#c0392b;font-weight:600;text-transform:uppercase">Não</div>
-    </div>
-    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fef3e0;border-radius:7px;padding:10px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#d97706">${counts_ans.parcial}</div>
-      <div style="font-size:10px;color:#d97706;font-weight:600;text-transform:uppercase">Parcial</div>
-    </div>
-    <div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f0f2f5;border-radius:7px;padding:10px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#6b7a8d">${counts_ans.na}</div>
-      <div style="font-size:10px;color:#6b7a8d;font-weight:600;text-transform:uppercase">N/A</div>
-    </div>
-  </div>
-
-  <!-- Sections -->
-  ${sectionsHTML}
-
-  <!-- Signatures -->
-  <div style="page-break-before:always;min-height:calc(100vh - 60mm);display:flex;flex-direction:column;justify-content:flex-end">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;page-break-inside:avoid">
-    <div style="border-top:2px solid #406053;padding-top:8px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7a8d;margin-bottom:4px">Representante da Obra</div>
-      <div style="font-size:13px;font-weight:700">${state.header.tecnico || 'Pedro Gonçalves'}</div>
-      <div style="font-size:11px;color:#6b7a8d;margin-top:2px">Data: ${formatDate(state.header.data)}</div>
-      <div style="margin-top:30px;border-top:1px dashed #ccc;padding-top:4px;font-size:10px;color:#aaa">Assinatura</div>
-    </div>
-    <div style="border-top:2px solid #406053;padding-top:8px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7a8d;margin-bottom:4px">Representante Legal (Empreiteiro)</div>
-      <div style="font-size:13px;font-weight:700">${state.header.rep || '—'}</div>
-      <div style="font-size:11px;color:#6b7a8d;margin-top:2px">Data: ${formatDate(state.header.data)}</div>
-      <div style="margin-top:30px;border-top:1px dashed #ccc;padding-top:4px;font-size:10px;color:#aaa">Assinatura</div>
-    </div>
-  </div>
-  </div>
-
-  <div class="no-print" style="margin-top:30px;text-align:center;display:flex;gap:10px;justify-content:center">
-    <button onclick="window.print()" style="padding:12px 28px;background:#406053;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🖨️ Imprimir / Guardar PDF</button>
-    <button onclick="location.reload()" style="padding:12px 28px;background:white;color:#406053;border:2px solid #406053;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">↩️ Voltar à Vistoria</button>
-  </div>
-</body>
-</html>`;
-
-  // Title used for the document — shown in the browser tab while the
-  // report is on screen, and as the default filename in the print/share
-  // sheet when the user picks "Guardar como PDF".
-  const printTitle = 'Vistoria Final de Obra \u2014 ' + (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
-  const printRef = (state.header.codigo || '') + (state.header.morada ? ' \u2014 ' + state.header.morada : '');
-
-  const printHtml = html
-    .replace('</head>',
-      `<style>:root{--print-ref:"${printRef.replace(/"/g,"'")}"}<\/style><title>${printTitle.replace(/</g,'')}<\/title></head>`);
-
-  printInPlace(printHtml);
+  const codigoStr = (state.header.codigo || state.header.morada || 'vistoria').replace(/[^a-zA-Z0-9\u00c0-\u00fa\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
+  const dataStr = (state.header.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+  pdfFinish(ctx, `Vistoria_${codigoStr}_${dataStr}.pdf`);
+  showToast('PDF gerado e descarregado.');
 }
 
 function showToast(msg) {
@@ -3148,31 +3238,44 @@ document.getElementById('photo-modal').addEventListener('click', function(e) {
     ind.style.display = 'block';
   }
 
-  // Duas situações trazem de volta a esta página já a meio de uma
-  // vistoria, sem o utilizador ter de tocar em "Iniciar Vistoria" outra
-  // vez: 1) voltámos do login Google (connectDrive fez uma navegação de
-  // topo); 2) voltámos do ecrã de impressão (printInPlace substituiu a
-  // página por completo e o botão "Voltar à Vistoria" recarregou-a).
+  // Voltámos do login Google (connectDrive faz uma navegação de topo para
+  // o ecrã de consentimento e regressa) — se o utilizador estava a meio
+  // da vistoria nesse momento, retoma-se automaticamente o ecrã da
+  // vistoria em vez de o deixar parado no ecrã inicial.
   var resumeFromDrive = cameFromDriveLogin && _storage().getItem(DRIVE_OAUTH_RESUME_KEY) === '1';
-  var resumeFromPrint = _storage().getItem(PRINT_RESUME_KEY) === '1';
   _storage().removeItem(DRIVE_OAUTH_RESUME_KEY);
-  _storage().removeItem(PRINT_RESUME_KEY);
-  if (resumeFromDrive || resumeFromPrint) {
+  if (resumeFromDrive) {
     setTimeout(function() { startApp(); }, 0);
   }
 })();
 
-// ── PWA Service Worker ──
+// ── Remoção de Service Workers antigos ──
+// Uma versão anterior desta app registava um Service Worker (para um
+// "modo offline" básico) com uma estratégia cache-first mal implementada
+// (nunca chegava a popular o cache, mas intercetava sempre o fetch do
+// próprio documento). Combinado com a forma como o Android Chrome trata
+// Service Workers já registados, isto pode fazer com que a app continue
+// a servir, indefinidamente, uma versão ANTIGA em cache — mesmo depois
+// de atualizares este ficheiro no GitHub Pages e recarregares a página.
+// Isto explica sintomas como uma correção "não fazer efeito" apesar de
+// repetida, ou a app parecer "voltar atrás" sozinha. A partir de agora a
+// app desliga ativamente esse mecanismo.
+//
+// IMPORTANTE: isto só resolve a partir do momento em que o teu telemóvel
+// conseguir buscar ESTE ficheiro da rede em vez do antigo em cache. Se a
+// app continuar com comportamento "antigo" depois desta atualização,
+// limpa os dados do site (Chrome → ⋮ → Definições do site →
+// pedroluvio.github.io → Limpar e reiniciar) ou desinstala e reinstala a
+// PWA — isso força o browser a deixar de usar o Service Worker antigo.
 if ('serviceWorker' in navigator) {
-  const sw = `
-    const CACHE='vistoria-v1';
-    self.addEventListener('install',e=>{self.skipWaiting()});
-    self.addEventListener('fetch',e=>{
-      e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>new Response('offline'))));
-    });
-  `;
-  const blob = new Blob([sw], {type:'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(r) { r.unregister(); });
+  }).catch(function() {});
+  if (window.caches && caches.keys) {
+    caches.keys().then(function(keys) {
+      keys.forEach(function(k) { caches.delete(k); });
+    }).catch(function() {});
+  }
 }
 </script>
 </body>
