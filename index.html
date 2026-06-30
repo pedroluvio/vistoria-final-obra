@@ -2608,7 +2608,22 @@ async function handlePhotos(e) {
 
     for (const file of files) {
       const tempKey = 'pending_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-      photoBlobCache[tempKey] = URL.createObjectURL(file);
+
+      // Miniatura gerada JÁ AQUI, antes de iniciar o upload — não esperar
+      // pelo fim do envio (que pode demorar vários segundos) para largar
+      // a versão em resolução total da pré-visualização. Tirar uma 2ª
+      // fotografia enquanto a 1ª ainda está a enviar é precisamente o
+      // cenário de maior pico de memória (duas fotos de câmara inteiras
+      // ao mesmo tempo, mais a própria câmara a abrir) — reduzir isto o
+      // mais cedo possível é o que faz diferença real.
+      const rawPreviewUrl = URL.createObjectURL(file);
+      try {
+        photoBlobCache[tempKey] = await downscaleImageToObjectUrl(rawPreviewUrl, PHOTO_THUMB_MAX_DIM);
+        URL.revokeObjectURL(rawPreviewUrl);
+      } catch (e) {
+        photoBlobCache[tempKey] = rawPreviewUrl; // fallback: mantém a original se a miniatura falhar
+      }
+
       const entry = { driveId: null, tempKey: tempKey, name: file.name, mimeType: file.type, status: 'uploading' };
       state.photos[id].push(entry);
       renderPhotoRow(id);
@@ -2621,20 +2636,11 @@ async function handlePhotos(e) {
       }
 
       try {
+        // file (o ficheiro original da câmara) só é usado aqui, para o
+        // upload em qualidade total — a pré-visualização em cache já é a
+        // miniatura desde o passo anterior, mesmo enquanto isto demora.
         const uploaded = await uploadPhotoToDrive(file, id);
-        // Reduz a pré-visualização local (ficheiro da câmara em resolução
-        // total) a uma miniatura pequena antes de manter em cache — manter
-        // todas as fotos da sessão em resolução total na memória tornava
-        // mais provável o Android reciclar o processo da PWA ao abrir a
-        // câmara para a fotografia seguinte. A exportação para PDF nunca
-        // usa este cache (vai sempre buscar o original ao Drive).
-        const fullPreviewUrl = photoBlobCache[tempKey];
-        try {
-          photoBlobCache[uploaded.driveId] = await downscaleImageToObjectUrl(fullPreviewUrl, PHOTO_THUMB_MAX_DIM);
-          URL.revokeObjectURL(fullPreviewUrl);
-        } catch (e) {
-          photoBlobCache[uploaded.driveId] = fullPreviewUrl; // fallback: mantém a original
-        }
+        photoBlobCache[uploaded.driveId] = photoBlobCache[tempKey];
         delete photoBlobCache[tempKey];
         entry.driveId = uploaded.driveId;
         entry.name = uploaded.name;
