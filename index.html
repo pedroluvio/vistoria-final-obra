@@ -3173,7 +3173,7 @@ async function exportAutoReceção() {
   doc.text('Assinatura do representante do Empreiteiro', ctx.marginL + colW + 20, ctx.y + 5);
 
   const codigoStr = (h.codigo || h.morada || 'auto_rececao').replace(/[^a-zA-Z0-9À-ú\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
-  await pdfFinish(ctx, `Auto_Rececao_${codigoStr}.pdf`);
+  await pdfFinish(ctx, `${codigoStr} Auto de Recepção de Obra.pdf`);
 }
 
 // ════════════════════════════════════════
@@ -3410,7 +3410,7 @@ async function exportPDF() {
 
   const codigoStr = (state.header.codigo || state.header.morada || 'vistoria').replace(/[^a-zA-Z0-9\u00c0-\u00fa\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
   const dataStr = (state.header.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
-  await pdfFinish(ctx, `Vistoria_${codigoStr}_${dataStr}.pdf`);
+  await pdfFinish(ctx, `${codigoStr} Checklist Vistoria Final de Obra.pdf`);
 }
 
 function showToast(msg) {
