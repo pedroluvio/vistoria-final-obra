@@ -1113,11 +1113,8 @@
     <div style="font-size:12px;color:#6b7a8d;margin-bottom:18px">Preencha os dados adicionais para gerar o documento</div>
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data do Auto</div>
-    <input id="ar-data-auto" type="date" 
-           onfocus="document.getElementById('hint-data-auto').style.display='block'" 
-           onblur="document.getElementById('hint-data-auto').style.display='none'"
-           style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
-    <div id="hint-data-auto" style="display:none; color:#d93025; font-size:11px; margin-bottom:14px;">Escolher a data em que se realizou o auto.</div>
+    <input id="ar-data-auto" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
+    <div style="color:#d93025; font-size:11px; margin-bottom:14px;">Escolher a data em que se realizou o auto.</div>
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">NIPC do Empreiteiro</div>
     <input id="ar-nipc" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="500000000" maxlength="9"
@@ -1127,21 +1124,15 @@
     <div class="field-error-msg" id="ar-nipc-error" style="margin-bottom:14px">NIPC deve ter 9 dígitos</div>
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data de Adjudicação</div>
-    <input id="ar-adjudicacao" type="date" 
-           onfocus="document.getElementById('hint-adjudicacao').style.display='block'" 
-           onblur="document.getElementById('hint-adjudicacao').style.display='none'"
-           style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
-    <div id="hint-adjudicacao" style="display:none; color:#d93025; font-size:11px; margin-bottom:14px;">Escolher a data em que se adjudicou a obra. Caso não se saiba, introduzir a data em que foi iniciada a obra.</div>
+    <input id="ar-adjudicacao" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
+    <div style="color:#d93025; font-size:11px; margin-bottom:14px;">Escolher a data em que se adjudicou a obra. Caso não se saiba, introduzir a data em que foi iniciada a obra.</div>
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Concelho da Obra</div>
     <input id="ar-concelho" type="text" placeholder="Ex: Lisboa" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Início de Obra</div>
-    <input id="ar-inicio" type="date" 
-           onfocus="document.getElementById('hint-inicio').style.display='block'" 
-           onblur="document.getElementById('hint-inicio').style.display='none'"
-           style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
-    <div id="hint-inicio" style="display:none; color:#d93025; font-size:11px; margin-bottom:20px;">Escolher a data em que se iniciou a obra.</div>
+    <input id="ar-inicio" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
+    <div style="color:#d93025; font-size:11px; margin-bottom:20px;">Escolher a data em que se iniciou a obra.</div>
 
     <button onclick="exportAutoReceção()" style="width:100%;padding:14px;background:#406053;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;font-family:inherit">
       Imprimir Auto de Receção
