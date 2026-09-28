@@ -3076,14 +3076,6 @@ function validateNIPC() {
 }
 
 function openAutoReceção() {
-  // Pre-fill date fields with today if empty
-  const today = new Date().toISOString().split('T')[0];
-  const arAdj = document.getElementById('ar-adjudicacao');
-  const arIni = document.getElementById('ar-inicio');
-  const arDataAuto = document.getElementById('ar-data-auto');
-  if (!arAdj.value) arAdj.value = today;
-  if (!arIni.value) arIni.value = today;
-  if (!arDataAuto.value) arDataAuto.value = today;
   document.getElementById('auto-recep-modal').style.display = 'flex';
   document.getElementById('ar-nipc').classList.remove('input-invalid');
   document.getElementById('ar-nipc-error').classList.remove('show');
