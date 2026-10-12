@@ -1113,8 +1113,7 @@
     <div style="font-size:12px;color:#6b7a8d;margin-bottom:18px">Preencha os dados adicionais para gerar o documento</div>
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data do Auto</div>
-    <input id="ar-data-auto" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
-    <div style="color:#d93025; font-size:11px; margin-bottom:14px;">Escolher a data em que se realizou o auto.</div>
+    <input id="ar-data-auto" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">NIPC do Empreiteiro</div>
     <input id="ar-nipc" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="500000000" maxlength="9"
@@ -1124,15 +1123,13 @@
     <div class="field-error-msg" id="ar-nipc-error" style="margin-bottom:14px">NIPC deve ter 9 dígitos</div>
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Data de Adjudicação</div>
-    <input id="ar-adjudicacao" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
-    <div style="color:#d93025; font-size:11px; margin-bottom:14px;">Escolher a data em que se adjudicou a obra. Caso não se saiba, introduzir a data em que foi iniciada a obra.</div>
+    <input id="ar-adjudicacao" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Concelho da Obra</div>
     <input id="ar-concelho" type="text" placeholder="Ex: Lisboa" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;font-family:inherit">
 
     <div style="font-size:11px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Início de Obra</div>
-    <input id="ar-inicio" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:6px;outline:none;font-family:inherit">
-    <div style="color:#d93025; font-size:11px; margin-bottom:20px;">Escolher a data em que se iniciou a obra.</div>
+    <input id="ar-inicio" type="date" style="width:100%;padding:11px 12px;border:1.5px solid #dde2ea;border-radius:8px;font-size:14px;margin-bottom:20px;outline:none;font-family:inherit">
 
     <button onclick="exportAutoReceção()" style="width:100%;padding:14px;background:#406053;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;font-family:inherit">
       Imprimir Auto de Receção
@@ -1613,6 +1610,71 @@ let isDirty = false;
 let isSavingToDrive = false;
 let autosaveTimer = null;
 
+// ════════════════════════════════════════
+//  APK (Capacitor) — plataforma nativa
+// ════════════════════════════════════════
+// Dentro da APK a página corre num WebView do Capacitor, que injeta o objeto
+// window.Capacitor antes dos scripts da página. Na PWA (browser) esse objeto
+// não existe: IS_NATIVE fica false e tudo o que é nativo fica desligado, por
+// isso o comportamento da PWA não muda.
+const IS_NATIVE = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+let nativeAPI = null;
+const nativeReady = !IS_NATIVE ? Promise.resolve(null) : new Promise(function(resolve) {
+  const s = document.createElement('script');
+  s.src = 'native.js';
+  s.onload = function() { nativeAPI = window.NativeAPI || null; resolve(nativeAPI); };
+  s.onerror = function() { console.warn('native.js não carregou'); resolve(null); };
+  document.head.appendChild(s);
+});
+
+// Ligação ao Drive na APK: usa o AuthorizationClient do Google Play Services
+// (plugin DriveAuth). Depois da 1.ª autorização o token renova-se sozinho,
+// sem ecrãs nem redirecionamentos — acaba o login de hora a hora da PWA.
+const NATIVE_TOKEN_TTL_MS = 45 * 60 * 1000;   // o token vale ~1 h; renova-se antes
+let _nativeAuthChain = Promise.resolve();      // serializa pedidos: nunca há 2 em simultâneo
+
+function nativeAuthorize(interactive) {
+  const run = _nativeAuthChain.then(async function() {
+    // outra chamada pode já ter renovado o token entretanto
+    if (driveState.accessToken && Date.now() < driveState.tokenExpiresAt) return driveState.accessToken;
+    const api = await nativeReady;
+    if (!api) throw new Error('Plugins nativos indisponíveis.');
+    try {
+      const res = await api.DriveAuth.authorize({ interactive: !!interactive });
+      driveState.accessToken = res.accessToken;
+      driveState.tokenExpiresAt = Date.now() + NATIVE_TOKEN_TTL_MS;
+      setDriveStatus('connected');
+      return res.accessToken;
+    } catch (err) {
+      driveState.accessToken = null;
+      setDriveStatus('disconnected');
+      throw err;
+    }
+  });
+  _nativeAuthChain = run.catch(function() {});
+  return run;
+}
+
+// Tenta ligar em silêncio (sem ecrãs), com limite de tempo — nunca bloqueia o arranque.
+async function nativeSilentConnect(ms) {
+  if (!IS_NATIVE || driveState.connected) return;
+  try {
+    await Promise.race([
+      nativeAuthorize(false),
+      new Promise(function(_, reject) { setTimeout(function() { reject(new Error('timeout')); }, ms); }),
+    ]);
+  } catch (e) { /* segue sem Drive; o utilizador liga no indicador "Drive" */ }
+}
+
+function nativeAuthErrorMessage(err) {
+  const code = err && err.code ? String(err.code) : '';
+  const msg = String((err && err.message) || err || '');
+  if (code === 'cancelled' || /cancel/i.test(msg)) return 'Ligação ao Drive cancelada.';
+  if (code === 'api_10' || /DEVELOPER_ERROR|\b10:/.test(msg)) return 'Google Cloud: o cliente Android (pacote/SHA-1) não corresponde a esta APK — ver instruções.';
+  if (code === 'api_7' || /network/i.test(msg)) return 'Sem ligação à internet.';
+  return 'Não foi possível ligar ao Google Drive' + (code ? ' (' + code + ')' : '') + '.';
+}
+
 // ── OAuth via redirect de página completa (sem popups) ──
 // O fluxo anterior usava google.accounts.oauth2.initTokenClient (GIS), que
 // abre um POPUP para o login. Dentro de uma PWA instalada em modo standalone
@@ -1662,6 +1724,11 @@ function buildDriveAuthUrl() {
 // A app navega para fora (ecrã de login da Google) e volta sozinha — ver
 // consumeDriveRedirectToken(), chamado no arranque da página.
 function connectDrive(manual) {
+  if (IS_NATIVE) {
+    // APK: login nativo (sem navegar para fora da app)
+    setDriveStatus('connecting');
+    return nativeAuthorize(true);
+  }
   try { saveState(); } catch (e) { /* garante que nada se perde na navegação */ }
   setDriveStatus('connecting');
   window.location.href = buildDriveAuthUrl();
@@ -1711,6 +1778,11 @@ function consumeDriveRedirectToken() {
 // saveState() grava sempre em localStorage independentemente do Drive.
 async function ensureValidToken() {
   if (driveState.accessToken && Date.now() < driveState.tokenExpiresAt) return driveState.accessToken;
+  if (IS_NATIVE) {
+    // APK: renovação silenciosa pelo Google Play Services (sem ecrãs)
+    try { return await nativeAuthorize(false); }
+    catch (e) { throw new Error('Sessão do Drive expirou — toque no indicador "Drive" para voltar a ligar.'); }
+  }
   driveState.accessToken = null;
   setDriveStatus('disconnected');
   throw new Error('Sessão do Drive expirou — toque no indicador "Drive" para voltar a ligar.');
@@ -1718,11 +1790,28 @@ async function ensureValidToken() {
 
 async function driveApiFetch(url, options) {
   options = options || {};
-  const token = await ensureValidToken();
+  let token = await ensureValidToken();
   const sep = url.indexOf('?') >= 0 ? '&' : '?';
-  const finalUrl = url + sep + 'key=' + DRIVE_API_KEY;
-  const headers = Object.assign({}, options.headers, { 'Authorization': 'Bearer ' + token });
-  const res = await fetch(finalUrl, Object.assign({}, options, { headers: headers }));
+  // Na APK o pedido não tem a origem "pedroluvio.github.io": a chave de API
+  // (que pode estar limitada a esse domínio) é dispensável — o token OAuth
+  // já identifica a app.
+  const finalUrl = IS_NATIVE ? url : url + sep + 'key=' + DRIVE_API_KEY;
+  const send = function(t) {
+    const headers = Object.assign({}, options.headers, { 'Authorization': 'Bearer ' + t });
+    return fetch(finalUrl, Object.assign({}, options, { headers: headers }));
+  };
+  let res = await send(token);
+  if (res.status === 401 && IS_NATIVE) {
+    // Token rejeitado: limpa-o da cache do Play Services e pede outro, sem ecrãs
+    const bad = driveState.accessToken;
+    driveState.accessToken = null;
+    try {
+      const api = await nativeReady;
+      if (api && bad) await api.DriveAuth.clearToken({ accessToken: bad });
+      token = await nativeAuthorize(false);
+      res = await send(token);
+    } catch (e) { /* cai para o erro abaixo */ }
+  }
   if (res.status === 401) {
     driveState.accessToken = null;
     setDriveStatus('disconnected');
@@ -1754,7 +1843,11 @@ function onDriveStatusClick() {
     showToast('Drive ligado' + (driveState.projectFolderName ? ' — ' + driveState.projectFolderName : '') + '.');
     return;
   }
-  connectDrive(true);
+  const p = connectDrive(true);
+  if (IS_NATIVE) {
+    p.then(function() { showToast('Ligado ao Google Drive.'); })
+     .catch(function(err) { console.warn('Drive nativo:', err); showToast(nativeAuthErrorMessage(err)); });
+  }
 }
 
 function escapeDriveQuery(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
@@ -1802,7 +1895,9 @@ async function ensureProjectFolders() {
   if (driveState.parentFolderId && driveState.projectFolderName === folderName) {
     return { parentFolderId: driveState.parentFolderId, photosFolderId: driveState.photosFolderId };
   }
-  const parentFolderId = await findOrCreateFolder(folderName, null);
+  let parentFolderId = await findFolder(folderName, null);
+  driveState.projectFolderCreated = !parentFolderId;   // diagnóstico: a pasta já existia no Drive?
+  if (!parentFolderId) parentFolderId = await createFolder(folderName, null);
   const photosFolderId = await findOrCreateFolder(DRIVE_PHOTOS_SUBFOLDER, parentFolderId);
   driveState.parentFolderId = parentFolderId;
   driveState.photosFolderId = photosFolderId;
@@ -2139,11 +2234,20 @@ function exportSession() {
     ts: Date.now()
   }, null, 2);
   const blob = new Blob([payload], { type: 'application/json' });
+  const codigo = state.header.codigo || 'vistoria';
+  const fname = 'sessao_' + codigo + '_' + new Date().toISOString().slice(0,10) + '.json';
+  if (IS_NATIVE) {
+    saveBlobLocallyNative(blob, fname).then(function() {
+      showToast('Sessão pronta para guardar ou partilhar.');
+    }).catch(function(err) {
+      if (!isNativeShareCancel(err)) showToast('Não foi possível exportar a sessão.');
+    });
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const codigo = state.header.codigo || 'vistoria';
   a.href = url;
-  a.download = 'sessao_' + codigo + '_' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = fname;
   a.click();
   URL.revokeObjectURL(url);
   showToast('Sessão guardada como ficheiro JSON.');
@@ -2242,6 +2346,9 @@ async function startApp() {
   // connected (spec #5); the local cache is the offline-safe fallback.
   let restored = window._restoredStateData || loadState();
 
+  // APK: tenta ligar ao Drive em silêncio antes de decidir de onde vem a sessão
+  await nativeSilentConnect(6000);
+
   if (driveState.connected && (state.header.codigo || state.header.morada)) {
     try {
       await ensureProjectFolders();
@@ -2249,6 +2356,8 @@ async function startApp() {
       if (driveData) {
         restored = driveData;
         showToast('Sessão carregada do Google Drive.');
+      } else if (IS_NATIVE && driveState.projectFolderCreated) {
+        showToast('Pasta nova criada no Drive: ' + driveState.projectFolderName);
       }
     } catch (e) {
       console.warn('Não foi possível carregar sessão do Drive:', e);
@@ -2311,6 +2420,7 @@ async function startApp() {
 
   updateProgress();
   if (driveState.connected) startAutosaveTimer();
+  _vistoriaReadyResolve();   // APK: a vistoria já está desenhada (ver processamento de fotos recuperadas)
   } catch(err) {
     alert('Erro ao iniciar: ' + err.message);
   }
@@ -2596,14 +2706,26 @@ function addPhoto(itemId) {
   }
 
   document.getElementById('psm-camera').onclick = function() {
+    if (IS_NATIVE) {
+      // APK: câmara nativa, com recuperação da foto se o Android fechar a app
+      closePhotoModal();
+      saveState();
+      takeNativePhoto();
+      return;
+    }
     const fi = bindPhotoInput('file-input-camera', true);
     fi.value = '';
+    // Grava já em localStorage antes de sair para a câmara nativa — se o
+    // Android reciclar esta página em segundo plano (ver downscaleImageToObjectUrl),
+    // só a fotografia em curso fica por processar; tudo o resto está garantido.
+    saveState();
     fi.click();
   };
 
   document.getElementById('psm-gallery').onclick = function() {
     const fi = bindPhotoInput('file-input-gallery', false);
     fi.value = '';
+    saveState();
     fi.click();
   };
 
@@ -2627,7 +2749,12 @@ async function handlePhotos(e) {
   if (!files.length) return;
   const id = currentPhotoItemId;
   e.target.value = '';
+  await processPhotoFiles(files, id);
+}
 
+// Corpo comum a todas as origens de fotografias (galeria, câmara do browser e
+// câmara nativa da APK): miniatura → envio para o Drive → registo no estado.
+async function processPhotoFiles(files, id) {
   try {
     state.photos[id] = state.photos[id] || [];
 
@@ -2692,6 +2819,140 @@ async function handlePhotos(e) {
     showToast('Ocorreu um problema ao processar a fotografia — tenta novamente.');
   }
 }
+
+// ════════════════════════════════════════
+//  APK — câmara nativa, recuperação após o Android fechar a app, botão "voltar"
+// ════════════════════════════════════════
+const PENDING_PHOTO_KEY = 'vistoria_pending_photo_v1';
+let _vistoriaReadyResolve = function() {};
+const vistoriaReady = new Promise(function(resolve) { _vistoriaReadyResolve = resolve; });
+
+// Antes de abrir a câmara guarda-se para que item é a foto: se o Android
+// fechar a app enquanto a câmara está aberta, é isto que permite colocá-la
+// no sítio certo quando a app voltar (ver onNativeRestoredResult).
+function setPendingPhoto(itemId) {
+  try { _storage().setItem(PENDING_PHOTO_KEY, JSON.stringify({ itemId: itemId, ts: Date.now() })); } catch (e) {}
+}
+function takePendingPhoto() {
+  let p = null;
+  try {
+    p = JSON.parse(_storage().getItem(PENDING_PHOTO_KEY) || 'null');
+    _storage().removeItem(PENDING_PHOTO_KEY);
+  } catch (e) {}
+  if (p && p.ts && Date.now() - p.ts > 3600 * 1000) return null; // marcador antigo = lixo
+  return p;
+}
+
+async function takeNativePhoto() {
+  const api = await nativeReady;
+  if (!api) { showToast('Câmara nativa indisponível.'); return; }
+  const itemId = currentPhotoItemId;
+  setPendingPhoto(itemId);
+  let photo;
+  try {
+    photo = await api.Camera.getPhoto({
+      resultType: api.CameraResultType.Uri,
+      source: api.CameraSource.Camera,
+      quality: 90,
+      saveToGallery: false,
+      correctOrientation: true,
+    });
+  } catch (err) {
+    takePendingPhoto(); // limpa o marcador
+    const msg = String((err && (err.message || err)) || '');
+    if (!/cancel/i.test(msg)) {
+      console.warn('Camera.getPhoto falhou:', err);
+      showToast('Não foi possível tirar a fotografia.');
+    }
+    return;
+  }
+  takePendingPhoto();
+  try {
+    await ingestNativePhoto(photo, itemId);
+  } catch (err) {
+    console.error('Erro ao processar a fotografia nativa:', err);
+    showToast('Ocorreu um problema ao processar a fotografia — tenta novamente.');
+  }
+}
+
+// Lê o ficheiro que a câmara nativa gravou e entrega-o ao mesmo circuito das
+// fotografias da galeria (miniatura → Drive → estado).
+async function ingestNativePhoto(photo, itemId) {
+  const src = photo && (photo.webPath || (photo.path && window.Capacitor.convertFileSrc(photo.path)));
+  if (!src) throw new Error('A câmara não devolveu o caminho da fotografia.');
+  const resp = await fetch(src);
+  if (!resp.ok) throw new Error('Não foi possível ler a fotografia (' + resp.status + ').');
+  const blob = await resp.blob();
+  const file = new File([blob], 'IMG_' + Date.now() + '.jpg', { type: blob.type || 'image/jpeg' });
+  await processPhotoFiles([file], itemId);
+}
+
+// O Android fechou a app enquanto a câmara estava aberta: o Capacitor guarda
+// o resultado e entrega-o aqui no arranque seguinte.
+function onNativeRestoredResult(ev) {
+  try {
+    if (!ev || ev.pluginId !== 'Camera') return;
+    const pending = takePendingPhoto();
+    const data = ev.data || {};
+    if (!ev.success || !(data.webPath || data.path)) return; // cancelada ou falhada
+    if (!pending || !pending.itemId) {
+      showToast('Fotografia recuperada, mas sem destino — tira-a novamente.');
+      return;
+    }
+    currentPhotoItemId = pending.itemId;
+    vistoriaReady.then(function() {
+      return ingestNativePhoto(data, pending.itemId);
+    }).then(function() {
+      showToast('Fotografia recuperada depois de o Android fechar a app.');
+    }).catch(function(err) {
+      console.error('Falha ao recuperar a fotografia:', err);
+      showToast('Não foi possível recuperar a fotografia — tira-a novamente.');
+    });
+  } catch (e) { console.error(e); }
+}
+
+// Botão "voltar" do Android: fecha o que estiver aberto; na vistoria exige um
+// segundo toque em 2 s para sair (evita fechar a app sem querer em obra).
+let _lastBackPress = 0;
+function onNativeBackButton() {
+  const viewer = document.getElementById('photo-modal');
+  if (viewer && viewer.classList.contains('open')) { closePhoto(); return; }
+  const psm = document.getElementById('photo-source-modal');
+  if (psm && psm.style.display === 'flex') { psm.style.display = 'none'; return; }
+  const arm = document.getElementById('auto-recep-modal');
+  if (arm && arm.style.display === 'flex') { arm.style.display = 'none'; return; }
+  const now = Date.now();
+  if (now - _lastBackPress < 2000) {
+    if (nativeAPI) nativeAPI.App.exitApp();
+    return;
+  }
+  _lastBackPress = now;
+  showToast('Prime novamente para sair.');
+}
+
+// Guardar um ficheiro (PDF/JSON) quando não há Drive: o WebView não descarrega
+// blobs, por isso grava-se em cache e abre-se a partilha do Android
+// ("Guardar em Ficheiros", WhatsApp, e-mail, ...).
+async function saveBlobLocallyNative(blob, filename) {
+  const api = await nativeReady;
+  if (!api) throw new Error('Plugins nativos indisponíveis.');
+  const safeName = String(filename).replace(/[^\w.\-]+/g, '_');
+  const dataUrl = await blobToDataUrl(blob);
+  const base64 = String(dataUrl).split(',')[1] || '';
+  const written = await api.Filesystem.writeFile({ path: safeName, data: base64, directory: api.Directory.Cache });
+  await api.Share.share({ title: safeName, files: [written.uri], dialogTitle: 'Guardar ou partilhar' });
+}
+function isNativeShareCancel(err) {
+  return /cancel/i.test(String((err && (err.message || err)) || ''));
+}
+
+function setupNativeBridge(api) {
+  try { api.App.addListener('appRestoredResult', onNativeRestoredResult).catch(function() {}); } catch (e) { console.warn(e); }
+  try { api.App.addListener('backButton', onNativeBackButton).catch(function() {}); } catch (e) { console.warn(e); }
+  // as fotografias originais da câmara ficam na pasta da app — apagar as com mais de 24 h
+  try { api.DriveAuth.cleanupPhotos({ olderThanHours: 24 }).catch(function() {}); } catch (e) {}
+}
+nativeReady.then(function(api) { if (api) setupNativeBridge(api); });
 
 function renderPhotoRow(id) {
   const row = document.getElementById(`photo-row-${id}`);
@@ -3020,6 +3281,11 @@ async function pdfFinish(ctx, filename) {
       showToast('Não foi possível guardar no Drive — PDF descarregado localmente.');
     }
   }
+  if (IS_NATIVE) {
+    // APK: o WebView não descarrega blobs — grava em cache e abre a partilha do Android
+    try { await saveBlobLocallyNative(blob, filename); return; }
+    catch (err) { if (isNativeShareCancel(err)) return; console.warn('Partilha nativa do PDF falhou:', err); }
+  }
   ctx.doc.save(filename);
 }
 
@@ -3079,6 +3345,14 @@ function validateNIPC() {
 }
 
 function openAutoReceção() {
+  // Pre-fill date fields with today if empty
+  const today = new Date().toISOString().split('T')[0];
+  const arAdj = document.getElementById('ar-adjudicacao');
+  const arIni = document.getElementById('ar-inicio');
+  const arDataAuto = document.getElementById('ar-data-auto');
+  if (!arAdj.value) arAdj.value = today;
+  if (!arIni.value) arIni.value = today;
+  if (!arDataAuto.value) arDataAuto.value = today;
   document.getElementById('auto-recep-modal').style.display = 'flex';
   document.getElementById('ar-nipc').classList.remove('input-invalid');
   document.getElementById('ar-nipc-error').classList.remove('show');
@@ -3168,7 +3442,7 @@ async function exportAutoReceção() {
   doc.text('Assinatura do representante do Empreiteiro', ctx.marginL + colW + 20, ctx.y + 5);
 
   const codigoStr = (h.codigo || h.morada || 'auto_rececao').replace(/[^a-zA-Z0-9À-ú\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
-  await pdfFinish(ctx, `${codigoStr} Auto de Recepção de Obra.pdf`);
+  await pdfFinish(ctx, `Auto_Rececao_${codigoStr}.pdf`);
 }
 
 // ════════════════════════════════════════
@@ -3405,7 +3679,7 @@ async function exportPDF() {
 
   const codigoStr = (state.header.codigo || state.header.morada || 'vistoria').replace(/[^a-zA-Z0-9\u00c0-\u00fa\s_-]/g,'').replace(/\s+/g,'_').substring(0,40);
   const dataStr = (state.header.data || new Date().toISOString().slice(0,10)).replace(/-/g,'');
-  await pdfFinish(ctx, `${codigoStr} Checklist Vistoria Final de Obra.pdf`);
+  await pdfFinish(ctx, `Vistoria_${codigoStr}_${dataStr}.pdf`);
 }
 
 function showToast(msg) {
@@ -3460,6 +3734,10 @@ document.getElementById('photo-modal').addEventListener('click', function(e) {
 // connectDrive), 2) restaura o ecrã inicial a partir do cache local ──
 (function() {
   consumeDriveRedirectToken();
+
+  // APK: liga ao Drive em silêncio assim que possível (sem ecrãs, se o
+  // utilizador já autorizou antes) — o indicador "Drive" fica logo ligado.
+  if (IS_NATIVE) nativeSilentConnect(8000);
 
   var saved = loadState();
   if (!saved || !saved.state || !saved.state.header) return;

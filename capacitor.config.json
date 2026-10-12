@@ -1,0 +1,13 @@
+{
+  "appId": "pt.luvio.vistoria",
+  "appName": "Vistoria Final de Obra",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
+}
