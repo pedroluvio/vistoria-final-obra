@@ -942,12 +942,18 @@
       color-adjust: exact !important;
     }
   }
-  /* ── Barra inferior em 2 linhas: contadores em cima, botões em baixo ── */
-  .summary-bar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+   /* ── Barra inferior em 2 linhas: contadores em cima, botões em baixo ── */
+  html { overflow-x: hidden; }
+  .summary-bar { left: 0; right: auto; width: 100vw; flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
   .summary-chips { flex: 1 1 100%; min-width: 0; gap: 6px; }
   .summary-chip { flex: 1 1 0; min-width: 0; text-align: center; padding: 5px 2px; }
-  .export-fab { flex: 1 1 calc(50% - 4px); justify-content: center; padding: 10px 12px; }
+  .export-fab { flex: 1 1 calc(50% - 4px); min-width: 0; justify-content: center; padding: 10px 8px; }
   .sections-wrap { padding-bottom: max(124px, calc(104px + env(safe-area-inset-bottom))); }
+
+  /* ── Cabeçalho: nunca mais largo que o ecrã ── */
+  .header-top { flex-wrap: wrap; row-gap: 8px; }
+  .header-logo { min-width: 0; }
+  .header-actions { flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
 
   /* ── Contadores por capítulo (Sim / Não / Parcial / N/A) ── */
   .section-meta { flex-wrap: wrap; row-gap: 4px; }
