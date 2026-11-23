@@ -942,6 +942,26 @@
       color-adjust: exact !important;
     }
   }
+/* ── Barra inferior compacta: os 4 contadores cabem sempre ── */
+  .summary-bar { gap: 8px; padding: 10px 12px; }
+  .summary-chips { min-width: 0; gap: 4px; }
+  .summary-chip { flex: 1 1 0; min-width: 0; text-align: center; padding: 5px 2px; }
+  .export-fab { padding: 10px 14px; }
+
+  /* ── Contadores por capítulo (Sim / Não / Parcial / N/A) ── */
+  .section-meta { flex-wrap: wrap; row-gap: 4px; }
+  .sec-counts { display: inline-flex; align-items: center; gap: 4px; }
+  .sec-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box;
+    border-radius: 9px; color: #fff; line-height: 1;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+  }
+  .sec-count.c-sim { background: var(--sim); }
+  .sec-count.c-nao { background: var(--nao); }
+  .sec-count.c-parcial { background: var(--parcial); }
+  .sec-count.c-na { background: var(--na); }
+  .sec-count.is-zero { opacity: 0.3; }
 </style>
 </head>
 <body>
@@ -1067,14 +1087,8 @@
       <div class="summary-chip chip-parcial" id="sum-parcial">◑ 0</div>
       <div class="summary-chip chip-na" id="sum-na">— 0</div>
     </div>
-    <button class="export-fab" onclick="exportPDF()">
-      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Exportar PDF
-    </button>
-    <button class="export-fab" style="background:#c8973a" onclick="openAutoReceção()">
-      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Auto de Receção
-    </button>
+    <button class="export-fab" onclick="exportPDF()">PDF</button>
+    <button class="export-fab" style="background:#c8973a" onclick="openAutoReceção()">Auto</button>
   </div>
 </div>
 
@@ -2493,6 +2507,12 @@ function renderSections() {
           <div class="section-meta">
             <span class="section-progress-text" id="sp-${sec.id}">0 / ${total}</span>
             <span class="section-badge" id="sb-${sec.id}">por verificar</span>
+            <span class="sec-counts">
+              <span class="sec-count c-sim is-zero" id="sc-${sec.id}-sim" title="Sim">0</span>
+              <span class="sec-count c-nao is-zero" id="sc-${sec.id}-nao" title="Não">0</span>
+              <span class="sec-count c-parcial is-zero" id="sc-${sec.id}-parcial" title="Parcial">0</span>
+              <span class="sec-count c-na is-zero" id="sc-${sec.id}-na" title="N/A">0</span>
+            </span>
           </div>
         </div>
         <div class="section-done-tick"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
@@ -2643,10 +2663,12 @@ function updateSectionStatus(secId) {
   if (!sec) return;
 
   let total = 0, answered = 0;
+  const secCounts = { sim: 0, nao: 0, parcial: 0, na: 0 };
   for (const grp of sec.items) {
     for (let i = 0; i < grp.items.length; i++) {
       total++;
-      if (state.answers[`${grp.id}_${i}`]) answered++;
+      const v = state.answers[`${grp.id}_${i}`];
+      if (v) { answered++; secCounts[v]++; }
     }
   }
 
@@ -2655,6 +2677,15 @@ function updateSectionStatus(secId) {
   const sbEl = document.getElementById(`sb-${secId}`);
 
   spEl.textContent = `${answered} / ${total}`;
+
+  // contadores por capítulo (Sim / Não / Parcial / N/A)
+  ['sim','nao','parcial','na'].forEach(function(k) {
+    const cEl = document.getElementById(`sc-${secId}-${k}`);
+    if (cEl) {
+      cEl.textContent = secCounts[k];
+      cEl.classList.toggle('is-zero', secCounts[k] === 0);
+    }
+  });
 
   const done = answered === total;
   block.classList.toggle('is-done', done);
