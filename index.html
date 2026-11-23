@@ -942,11 +942,12 @@
       color-adjust: exact !important;
     }
   }
-/* ── Barra inferior compacta: os 4 contadores cabem sempre ── */
-  .summary-bar { gap: 8px; padding: 10px 12px; }
-  .summary-chips { min-width: 0; gap: 4px; }
+  /* ── Barra inferior em 2 linhas: contadores em cima, botões em baixo ── */
+  .summary-bar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .summary-chips { flex: 1 1 100%; min-width: 0; gap: 6px; }
   .summary-chip { flex: 1 1 0; min-width: 0; text-align: center; padding: 5px 2px; }
-  .export-fab { padding: 10px 14px; }
+  .export-fab { flex: 1 1 calc(50% - 4px); justify-content: center; padding: 10px 12px; }
+  .sections-wrap { padding-bottom: max(124px, calc(104px + env(safe-area-inset-bottom))); }
 
   /* ── Contadores por capítulo (Sim / Não / Parcial / N/A) ── */
   .section-meta { flex-wrap: wrap; row-gap: 4px; }
@@ -1087,8 +1088,14 @@
       <div class="summary-chip chip-parcial" id="sum-parcial">◑ 0</div>
       <div class="summary-chip chip-na" id="sum-na">— 0</div>
     </div>
-    <button class="export-fab" onclick="exportPDF()">PDF</button>
-    <button class="export-fab" style="background:#c8973a" onclick="openAutoReceção()">Auto</button>
+        <button class="export-fab" onclick="exportPDF()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar PDF
+    </button>
+    <button class="export-fab" style="background:#c8973a" onclick="openAutoReceção()">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Auto de Receção
+    </button>
   </div>
 </div>
 
